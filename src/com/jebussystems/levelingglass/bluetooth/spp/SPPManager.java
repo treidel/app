@@ -6,8 +6,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -23,7 +23,6 @@ public class SPPManager
 	private static final String TAG = "spp.manager";
 	private static final UUID SERVER_UUID = UUID
 	        .fromString("c20d3a1a-6c0d-11e2-aa09-000c298ce626");
-	private static final int RECONNECT_PERIOD_IN_SECS = 10;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
@@ -53,9 +52,6 @@ public class SPPManager
 	{
 		// store the message handler
 		this.messageHandler = messageHandler;
-		// start a periodic timer to do trigger reconnections
-		this.executor.scheduleAtFixedRate(new ReconnectMessage(), 0,
-		        RECONNECT_PERIOD_IN_SECS, TimeUnit.SECONDS);
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -169,38 +165,6 @@ public class SPPManager
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
 
-	private class ReconnectMessage implements Runnable
-	{
-
-		public void run()
-		{
-			Log.d(TAG, "periodic reconnect starting");
-			// if we're already connected don't do anything
-			if (true == state.equals(SPPState.CONNECTED))
-			{
-				Log.d(TAG, "already connected");
-				return;
-			}
-			// if we don't have a device don't do anything
-			if (null == device)
-			{
-				Log.d(TAG, "no device");
-				return;
-			}
-			// if the device stopped being paired remove it
-			if (false == BluetoothAdapter.getDefaultAdapter()
-			        .getBondedDevices().contains(device))
-			{
-				Log.d(TAG, "paired device=" + device.toString()
-				        + " removed, clearing");
-				device = null;
-				return;
-			}
-			// schedule a connection attempt
-			executor.submit(new ConnectMessage(device));
-		}
-
-	}
 
 	private class ConnectMessage implements Runnable
 	{

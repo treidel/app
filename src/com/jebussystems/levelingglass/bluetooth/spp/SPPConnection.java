@@ -4,9 +4,6 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
 
 import android.bluetooth.BluetoothSocket;
 import android.util.Log;
@@ -33,8 +30,6 @@ public class SPPConnection
 	private final SPPManager manager;
 	private final SPPMessageHandler messageHandler;
 	private final BluetoothSocket socket;
-	private final WritableByteChannel writeChannel;
-	private final ReadableByteChannel readChannel;
 	private final DataOutputStream writeStream;
 	private final DataInputStream readStream;
 	private final Thread thread;
@@ -49,8 +44,6 @@ public class SPPConnection
 		// store data and allocate the channels
 		this.manager = manager;
 		this.socket = socket;
-		this.writeChannel = Channels.newChannel(socket.getOutputStream());
-		this.readChannel = Channels.newChannel(socket.getInputStream());
 		this.writeStream = new DataOutputStream(socket.getOutputStream());
 		this.readStream = new DataInputStream(socket.getInputStream());
 		this.messageHandler = messageHandler;
@@ -68,7 +61,9 @@ public class SPPConnection
 		// write the size of the request
 		this.writeStream.writeShort(request.capacity());
 		// write the request
-		this.writeChannel.write(request);
+		this.writeStream.write(request.array());
+		// flush
+		this.writeStream.flush();
 	}
 
 	public void close()
@@ -114,7 +109,7 @@ public class SPPConnection
 					short length = readStream.readShort();
 					// allocate a buffer and read the message in
 					ByteBuffer buffer = ByteBuffer.allocate(length);
-					readChannel.read(buffer);
+					readStream.read(buffer.array(), 0, length);
 					// call the handler
 					messageHandler.handleSPPMessage(buffer);
 				}
