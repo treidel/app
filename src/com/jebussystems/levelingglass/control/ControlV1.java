@@ -5,9 +5,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import v1.V1;
-
 import android.util.Log;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -15,6 +16,7 @@ import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPMessageHandler;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPState;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPStateListener;
+import com.jebussystems.levelingglass.util.StateMachine;
 
 public class ControlV1 implements SPPMessageHandler, SPPStateListener
 {
@@ -50,6 +52,16 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		void handleLevelData(List<Integer> levels);
 	}
 
+	private enum State
+	{
+		WAIT_FOR_CONNECTION, SYNCHRONIZING, CONNECTED
+	}
+
+	private enum Event
+	{
+		CONNECTED, DISCONNECTED, QUERY_CHANNELS_RESPONSE, LEVEL_CHANGE
+	}
+
 	// /////////////////////////////////////////////////////////////////////////
 	// constants
 	// /////////////////////////////////////////////////////////////////////////
@@ -57,13 +69,47 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private static final String TAG = "control.v1";
 
 	// /////////////////////////////////////////////////////////////////////////
+	// class variables
+	// /////////////////////////////////////////////////////////////////////////
+
+	private static StateMachine<State, Event, ControlV1, Void> stateMachine = new StateMachine<State, Event, ControlV1, Void>(
+	        State.WAIT_FOR_CONNECTION);
+
+	// /////////////////////////////////////////////////////////////////////////
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
 
+	private final ScheduledExecutorService executor = Executors
+	        .newSingleThreadScheduledExecutor();
 	private final SPPManager manager;
 	private Level level = Level.NONE;
 	private final Collection<LevelListener> listeners = new LinkedList<LevelListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
+	private StateMachine<State, Event, ControlV1, Void>.Instance stateMachineInstance = stateMachine
+	        .createInstance(this);
+
+	// /////////////////////////////////////////////////////////////////////////
+	// static initialization
+	// /////////////////////////////////////////////////////////////////////////
+
+	static
+	{
+		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.CONNECTED,
+		        new ConnectHandler());
+		stateMachine.addHandler(State.SYNCHRONIZING,
+		        Event.QUERY_CHANNELS_RESPONSE,
+		        new QueryChannelsResponseHandler());
+		stateMachine.addHandler(State.SYNCHRONIZING, Event.DISCONNECTED,
+		        new DisconnectHandler());
+		stateMachine.addHandler(State.CONNECTED, Event.DISCONNECTED,
+		        new DisconnectHandler());
+		stateMachine.addHandler(State.CONNECTED, Event.LEVEL_CHANGE,
+		        new ChangeLevelInConnectedHandler());
+		stateMachine.addHandler(State.SYNCHRONIZING, Event.LEVEL_CHANGE,
+		        stateMachine.createDoNothingHandler());
+		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.LEVEL_CHANGE,
+		        stateMachine.createDoNothingHandler());
+	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -77,6 +123,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		this.manager = new SPPManager(this);
 		// we care about state transitions too
 		this.manager.addSPPStateListener(this);
+
+		// TBD: restore the stored level (if it exists)
+
+		// wait for a connection
 
 		Log.d(TAG, "ControlV1 exit");
 	}
@@ -94,8 +144,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 		// TBD: persist this
 
-		// send a message to the server
-		sendLevelRequest(level);
+		// trigger the state machine
+		LevelChangeMessage message = new LevelChangeMessage();
+		this.executor.execute(message);
 
 		Log.d(TAG, "setLevel exit");
 	}
@@ -134,18 +185,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	{
 		Log.d(TAG, "notifySPPStateChanged enter state=" + state.toString());
 
-		// when the state changes to connected we trigger the sending of
-		// a query for the list of channels
-		if (true == state.equals(SPPState.CONNECTED))
-		{
-			// send the request
-			sendQueryChannelRequest();
-		}
-		else
-		{
-			// wipe the pending request list
-			this.pendingRequestQueue.clear();
-		}
+		// send ourselves a message to handle this
+		SPPStateMessage message = new SPPStateMessage(state);
+		this.executor.execute(message);
 
 		Log.d(TAG, "notifySPPStateChanged exit");
 
@@ -232,9 +274,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// calculate how large the request is in bytes
 		short length = (short) request.getSerializedSize();
 		// allocate a byte buffer to hold it
-		ByteBuffer buffer = ByteBuffer.allocate(length + (Short.SIZE / 8));
-		// write in the size
-		buffer.putShort(length);
+		ByteBuffer buffer = ByteBuffer.allocate(length);
 		// write in the serialized request
 		byte[] data = request.toByteArray();
 		buffer.put(data);
@@ -333,4 +373,103 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		Log.d(TAG, "handleNotification exit");
 	}
 
+	// /////////////////////////////////////////////////////////////////////////
+	// inner classes
+	// /////////////////////////////////////////////////////////////////////////
+
+	private class LevelChangeMessage implements Runnable
+	{
+		@Override
+		public void run()
+		{
+			Log.d(TAG, "run");
+			stateMachineInstance.evaluate(Event.LEVEL_CHANGE, null);
+		}
+	}
+
+	private class SPPStateMessage implements Runnable
+	{
+		private final SPPState state;
+
+		public SPPStateMessage(SPPState state)
+		{
+			this.state = state;
+		}
+
+		@Override
+		public void run()
+		{
+
+			Log.d(TAG, "run state=" + this.state);
+
+			switch (this.state)
+			{
+				case CONNECTED:
+					// send in the event
+					stateMachineInstance.evaluate(Event.CONNECTED, null);
+					break;
+				case DISCONNECTED:
+					// send in the event
+					stateMachineInstance.evaluate(Event.DISCONNECTED, null);
+					break;
+				case CONNECTING:
+					// ignore
+					break;
+				default:
+					Log.wtf(TAG, "state=" + this.state);
+					return;
+			}
+		}
+	}
+
+	private static class ConnectHandler implements
+	        StateMachine.Handler<State, ControlV1, Void>
+	{
+		@Override
+		public State handleEvent(ControlV1 object, Void data)
+		{
+			// send the request for the list of channels
+			object.sendQueryChannelRequest();
+			
+			// now synchronizing
+			return State.SYNCHRONIZING;
+		}
+	}
+
+	private static class QueryChannelsResponseHandler implements
+	        StateMachine.Handler<State, ControlV1, Void>
+	{
+		@Override
+		public State handleEvent(ControlV1 object, Void data)
+		{
+			// send the level
+			object.sendLevelRequest(object.getLevel());
+			// now connected
+			return State.CONNECTED;
+		}
+	}
+
+	private static class DisconnectHandler implements
+	        StateMachine.Handler<State, ControlV1, Void>
+	{
+		@Override
+		public State handleEvent(ControlV1 object, Void data)
+		{
+			// now connected
+			return State.WAIT_FOR_CONNECTION;
+		}
+	}
+
+	private static class ChangeLevelInConnectedHandler implements
+	        StateMachine.Handler<State, ControlV1, Void>
+	{
+		@Override
+		public State handleEvent(ControlV1 object, Void data)
+		{
+			// send the new level
+			object.sendLevelRequest(object.getLevel());
+			// no change in state
+			return null;
+		}
+	}
 }
