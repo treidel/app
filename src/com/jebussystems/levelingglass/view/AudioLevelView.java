@@ -1,11 +1,15 @@
 package com.jebussystems.levelingglass.view;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.util.AttributeSet;
 import android.view.View;
+
+import com.jebussystems.levelingglass.R;
 
 public class AudioLevelView extends View
 {
@@ -14,9 +18,10 @@ public class AudioLevelView extends View
 	// /////////////////////////////////////////////////////////////////////////
 
 	private static final int SILENCE_LEVEL_IN_DB = -90;
+	private static final int INVALID_LEVEL = -1;
 	private static final int INVALID_COLOR = Color.GRAY;
 	private static final int DEFAULT_COLOR = Color.BLUE;
-	
+
 	// /////////////////////////////////////////////////////////////////////////
 	// types
 	// /////////////////////////////////////////////////////////////////////////
@@ -25,28 +30,39 @@ public class AudioLevelView extends View
 	// variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private Integer level = null;
-	private Paint paint = new Paint();
-	private Rect rect = new Rect();
+	private int level = INVALID_LEVEL;
+	private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+	private Rect rect;
 	private int color = DEFAULT_COLOR;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
 	// /////////////////////////////////////////////////////////////////////////
 
-	public AudioLevelView(Context context)
+	public AudioLevelView(Context context, AttributeSet attrs)
 	{
-		super(context);
-		// set the paint to use the invalid color 
+		super(context, attrs);
+		// initialize our attributes using the info from the attribute set
+		TypedArray a = context.getTheme().obtainStyledAttributes(attrs,
+		        R.styleable.AudioLevel, 0, 0);
+		try
+		{
+			this.level = a.getInteger(R.styleable.AudioLevel_level, INVALID_LEVEL);
+			this.color = a.getColor(R.styleable.AudioLevel_color, DEFAULT_COLOR);
+		}
+		finally
+		{
+			a.recycle();
+		}
+		// set the paint to use the invalid color until we have a real value
 		this.paint.setColor(INVALID_COLOR);
-		// fill the view
-		this.rect.set(0,  0, getWidth(), getHeight());
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	
 	public void setLevel(int level)
 	{
 		if (this.level != level)
@@ -54,7 +70,7 @@ public class AudioLevelView extends View
 			// set the level
 			this.level = Math.max(SILENCE_LEVEL_IN_DB, level);
 			// calculate the percentage of pixels we want to fill
-			float percent = 100.0f + ((float)this.level / (float)SILENCE_LEVEL_IN_DB);
+			float percent = 100.0f + ((float) this.level / (float) SILENCE_LEVEL_IN_DB);
 			// calculate the number of pixels we need to draw
 			int pixels = (int) ((float) getWidth() * percent);
 			// setup the rectangle
@@ -65,11 +81,11 @@ public class AudioLevelView extends View
 			invalidate();
 		}
 	}
-	
+
 	public void clearLevel()
 	{
 		// clear the level
-		this.level = null;
+		this.level = INVALID_LEVEL;
 		// reset the color to invalid
 		this.paint.setColor(INVALID_COLOR);
 		// fill the view
@@ -98,6 +114,14 @@ public class AudioLevelView extends View
 	// View overrides
 	// /////////////////////////////////////////////////////////////////////////
 
+	@Override
+	public void onSizeChanged(int width, int height, int oldwidth, int oldheight)
+	{
+		// size the drawing rectangle
+		this.rect = new Rect(0, 0, width, height);
+	}
+
+	
 	@Override
 	protected void onDraw(Canvas canvas)
 	{
