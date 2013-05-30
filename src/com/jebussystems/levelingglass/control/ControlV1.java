@@ -72,7 +72,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private static StateMachine<State, Event, ControlV1, Void> stateMachine = new StateMachine<State, Event, ControlV1, Void>(
+	private static StateMachine<State, Event, ControlV1, Object> stateMachine = new StateMachine<State, Event, ControlV1, Object>(
 	        State.WAIT_FOR_CONNECTION);
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -85,7 +85,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private Level level = Level.NONE;
 	private final Collection<LevelListener> listeners = new LinkedList<LevelListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
-	private StateMachine<State, Event, ControlV1, Void>.Instance stateMachineInstance = stateMachine
+	private StateMachine<State, Event, ControlV1, Object>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -423,24 +423,24 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	}
 
 	private static class ConnectHandler implements
-	        StateMachine.Handler<State, ControlV1, Void>
+	        StateMachine.Handler<State, ControlV1, Object>
 	{
 		@Override
-		public State handleEvent(ControlV1 object, Void data)
+		public State handleEvent(ControlV1 object, Object data)
 		{
 			// send the request for the list of channels
 			object.sendQueryChannelRequest();
-			
+
 			// now synchronizing
 			return State.SYNCHRONIZING;
 		}
 	}
 
 	private static class QueryChannelsResponseHandler implements
-	        StateMachine.Handler<State, ControlV1, Void>
+	        StateMachine.Handler<State, ControlV1, Object>
 	{
 		@Override
-		public State handleEvent(ControlV1 object, Void data)
+		public State handleEvent(ControlV1 object, Object data)
 		{
 			// send the level
 			object.sendLevelRequest(object.getLevel());
@@ -450,10 +450,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	}
 
 	private static class DisconnectHandler implements
-	        StateMachine.Handler<State, ControlV1, Void>
+	        StateMachine.Handler<State, ControlV1, Object>
 	{
 		@Override
-		public State handleEvent(ControlV1 object, Void data)
+		public State handleEvent(ControlV1 object, Object data)
 		{
 			// now connected
 			return State.WAIT_FOR_CONNECTION;
@@ -461,10 +461,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	}
 
 	private static class ChangeLevelInConnectedHandler implements
-	        StateMachine.Handler<State, ControlV1, Void>
+	        StateMachine.Handler<State, ControlV1, Object>
 	{
 		@Override
-		public State handleEvent(ControlV1 object, Void data)
+		public State handleEvent(ControlV1 object, Object data)
 		{
 			// send the new level
 			object.sendLevelRequest(object.getLevel());
@@ -472,4 +472,5 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			return null;
 		}
 	}
+
 }

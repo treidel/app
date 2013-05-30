@@ -87,6 +87,7 @@ public class MainActivity extends Activity
 			{
 				// send a message to the UI thread to handle this
 				Message message = this.handler.obtainMessage(CHANNEL, iterator.nextIndex(), iterator.next());
+
 				message.sendToTarget();				
 			}
 		}
@@ -104,7 +105,7 @@ public class MainActivity extends Activity
 					        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 					View view = vi.inflate(R.layout.level, null);
 					// insert into main view
-					layout.addView(view, msg.arg1, new ViewGroup.LayoutParams(
+					layout.addView(view, msg.arg1 - 1, new ViewGroup.LayoutParams(
 					        ViewGroup.LayoutParams.MATCH_PARENT,
 					        ViewGroup.LayoutParams.MATCH_PARENT));
 				}
@@ -113,7 +114,7 @@ public class MainActivity extends Activity
 				case LEVEL_DATA:
 				{
 					// find the layout view
-					View view = layout.getChildAt(msg.arg1);
+					View view = layout.getChildAt(msg.arg1 - 1);
 					// find the audio level view
 					AudioLevelView audiolevel = (AudioLevelView)view.findViewById(R.id.audio_view);
 					// set the level
