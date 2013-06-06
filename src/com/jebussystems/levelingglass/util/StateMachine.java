@@ -130,6 +130,10 @@ public class StateMachine<S extends Enum<S>, E extends Enum<E>, O, D>
 		{
 			Log.d(TAG, "evaluate event=" + event + " data=" + data);
 			Handler<S, O, D> handler = findHandler(getState(), event);
+			if (null == handler) 
+			{
+				Log.e(TAG,  "unhandled event=" + event + " state=" + getState());
+			}
 			S nextState = handler.handleEvent(getObject(), data);
 			if ((null != nextState) && (false == nextState.equals(this.state)))
 			{

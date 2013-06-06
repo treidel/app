@@ -2,9 +2,13 @@ package com.jebussystems.levelingglass.control;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.LinkedList;
-import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -27,29 +31,42 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public enum Level
 	{
-		NONE(V1.SetLevelRequest.LevelType.NONE), VU(
-		        V1.SetLevelRequest.LevelType.VU), PEAK(
-		        V1.SetLevelRequest.LevelType.PEAK);
+		NONE(V1.LevelType.NONE), VU(V1.LevelType.VU), PEAK(V1.LevelType.PEAK);
 
-		private final V1.SetLevelRequest.LevelType levelType;
+		private static final Map<V1.LevelType, Level> externalToInternalMap = new EnumMap<V1.LevelType, Level>(
+		        V1.LevelType.class);
 
-		private Level(V1.SetLevelRequest.LevelType levelType)
+		private final V1.LevelType levelType;
+
+		static
+		{
+			externalToInternalMap.put(V1.LevelType.NONE, NONE);
+			externalToInternalMap.put(V1.LevelType.PEAK, PEAK);
+			externalToInternalMap.put(V1.LevelType.VU, VU);
+		}
+
+		private Level(V1.LevelType levelType)
 		{
 			this.levelType = levelType;
 		}
 
-		public V1.SetLevelRequest.LevelType getLevelType()
+		public static Level findLevel(V1.LevelType levelType)
+		{
+			return externalToInternalMap.get(levelType);
+		}
+
+		public V1.LevelType getLevelType()
 		{
 			return levelType;
 		}
 
 	}
 
-	public interface LevelListener
+	public interface EventListener
 	{
-		void handleChannelDiscovery(Collection<Integer> channels);
+		void notifyConnected();
 
-		void handleLevelData(List<Integer> levels);
+		void notifyLevelsUpdated();
 	}
 
 	private enum State
@@ -83,10 +100,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	        .newSingleThreadScheduledExecutor();
 	private final SPPManager manager;
 	private Level level = Level.NONE;
-	private final Collection<LevelListener> listeners = new LinkedList<LevelListener>();
+	private final Collection<EventListener> listeners = new LinkedList<EventListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
 	private StateMachine<State, Event, ControlV1, Object>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
+	private Set<Integer> channels = null;
+	private Map<Integer, LevelDataRecord> levelDataRecords = null;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// static initialization
@@ -96,6 +115,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	{
 		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.CONNECTED,
 		        new ConnectHandler());
+		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.DISCONNECTED,
+		        new DisconnectHandler());
+		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.LEVEL_CHANGE,
+		        stateMachine.createDoNothingHandler());
 		stateMachine.addHandler(State.SYNCHRONIZING,
 		        Event.QUERY_CHANNELS_RESPONSE,
 		        new QueryChannelsResponseHandler());
@@ -106,8 +129,6 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		stateMachine.addHandler(State.CONNECTED, Event.LEVEL_CHANGE,
 		        new ChangeLevelInConnectedHandler());
 		stateMachine.addHandler(State.SYNCHRONIZING, Event.LEVEL_CHANGE,
-		        stateMachine.createDoNothingHandler());
-		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.LEVEL_CHANGE,
 		        stateMachine.createDoNothingHandler());
 	}
 
@@ -123,10 +144,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		this.manager = new SPPManager(this);
 		// we care about state transitions too
 		this.manager.addSPPStateListener(this);
+		
+		// setup the state machine state change listener
+		this.stateMachineInstance.addListener(new StateMachineListener());
 
 		// TBD: restore the stored level (if it exists)
 
-		// wait for a connection
 
 		Log.d(TAG, "ControlV1 exit");
 	}
@@ -156,7 +179,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		return level;
 	}
 
-	public void addListener(LevelListener listener)
+	public void addListener(EventListener listener)
 	{
 		synchronized (this.listeners)
 		{
@@ -164,7 +187,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		}
 	}
 
-	public void removeListener(LevelListener listener)
+	public void removeListener(EventListener listener)
 	{
 		synchronized (this.listeners)
 		{
@@ -175,6 +198,16 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	public SPPManager getManager()
 	{
 		return manager;
+	}
+
+	public Set<Integer> getChannels()
+	{
+		return channels;
+	}
+
+	public Map<Integer, LevelDataRecord> getLevelDataRecord()
+	{
+		return levelDataRecords;
 	}
 
 	// ////////////////////////////////////////////////////////////////////////
@@ -231,14 +264,14 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// private method implementations
 	// ////////////////////////////////////////////////////////////////////////
 
-	private void sendLevelRequest(Level level)
+	private void sendLevelRequest()
 	{
 		Log.d(TAG, "sendLevelRequest enter level=" + level);
 
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
 		        .newBuilder();
-		setLevelRequestBuilder.setLeveltype(level.getLevelType());
+		setLevelRequestBuilder.setType(level.getLevelType());
 		V1.Request.Builder requestBuilder = V1.Request.newBuilder();
 		requestBuilder.setSetlevel(setLevelRequestBuilder);
 		requestBuilder.setType(V1.RequestType.SETLEVEL);
@@ -322,18 +355,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			switch (response.getType())
 			{
 				case QUERYAUDIOCHANNELS:
-					// setup a level for each channel
-					synchronized (this.listeners)
-					{
-						for (LevelListener listener : listeners)
-						{
-							listener.handleChannelDiscovery(response
-							        .getQueryaudiochannels().getChannelsList());
-						}
-					}
-					// tell the server to start sending us level notifications
-					sendLevelRequest(level);
-
+					// trigger the state machine
+					this.stateMachineInstance.evaluate(
+					        Event.QUERY_CHANNELS_RESPONSE,
+					        response.getQueryaudiochannels());
 					// done
 					break;
 
@@ -357,12 +382,22 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		switch (notification.getType())
 		{
 			case LEVEL:
+				// store the level data internally
+				this.levelDataRecords = new TreeMap<Integer, LevelDataRecord>();
+				for (v1.V1.LevelRecord record : notification.getLevel()
+				        .getRecordsList())
+				{
+					this.levelDataRecords.put(
+					        record.getChannel(),
+					        new LevelDataRecord(record.getChannel(), record
+					                .getLevelInDB(), Level.findLevel(record
+					                .getType())));
+				}
 				synchronized (this.listeners)
 				{
-					for (LevelListener listener : listeners)
+					for (EventListener listener : listeners)
 					{
-						listener.handleLevelData(notification.getLevel()
-						        .getLevelInDecibelsList());
+						listener.notifyLevelsUpdated();
 					}
 				}
 				break;
@@ -376,6 +411,55 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// /////////////////////////////////////////////////////////////////////////
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
+
+	public static class LevelDataRecord
+	{
+		private final int channel;
+		private final int levelInDB;
+		private final Level type;
+
+		public LevelDataRecord(int channel, int levelInDB, Level type)
+		{
+			this.channel = channel;
+			this.levelInDB = levelInDB;
+			this.type = type;
+		}
+
+		public int getChannel()
+		{
+			return channel;
+		}
+
+		public int getLevelInDB()
+		{
+			return levelInDB;
+		}
+
+		public Level getType()
+		{
+			return type;
+		}
+	}
+
+	private class StateMachineListener implements
+	        StateMachine.StateChangeListener<State>
+	{
+
+		@Override
+        public void notifyStateChange(State state)
+        {
+			if (true == State.CONNECTED.equals(state))
+			{
+				synchronized(listeners)
+				{
+					for (EventListener listener : listeners)
+					{
+						listener.notifyConnected();
+					}
+				}
+			}
+        }
+	}
 
 	private class LevelChangeMessage implements Runnable
 	{
@@ -409,6 +493,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					stateMachineInstance.evaluate(Event.CONNECTED, null);
 					break;
 				case DISCONNECTED:
+				case RECONNECTING:
 					// send in the event
 					stateMachineInstance.evaluate(Event.DISCONNECTED, null);
 					break;
@@ -442,8 +527,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
-			// send the level
-			object.sendLevelRequest(object.getLevel());
+			V1.QueryAudioChannelsResponse response = (V1.QueryAudioChannelsResponse) data;
+			// store the list of channels
+			object.channels = new TreeSet<Integer>();
+			for (int channel : response.getChannelsList())
+			{
+				object.channels.add(channel);
+			}
+			// tell the server to start sending us level notifications
+			object.sendLevelRequest();
 			// now connected
 			return State.CONNECTED;
 		}
@@ -455,6 +547,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
+			// clear any level data we may have
+			object.levelDataRecords = null;
 			// now connected
 			return State.WAIT_FOR_CONNECTION;
 		}
@@ -467,7 +561,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		public State handleEvent(ControlV1 object, Object data)
 		{
 			// send the new level
-			object.sendLevelRequest(object.getLevel());
+			object.sendLevelRequest();
 			// no change in state
 			return null;
 		}

@@ -5,7 +5,7 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Rect;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -17,9 +17,7 @@ public class AudioLevelView extends View
 	// constants
 	// /////////////////////////////////////////////////////////////////////////
 
-	private static final int SILENCE_LEVEL_IN_DB = -90;
-	private static final int INVALID_LEVEL = -1;
-	private static final int INVALID_COLOR = Color.GRAY;
+	private static final int SILENCE_LEVEL_IN_DB = -98;
 	private static final int DEFAULT_COLOR = Color.BLUE;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -30,9 +28,9 @@ public class AudioLevelView extends View
 	// variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private int level = INVALID_LEVEL;
+	private int level = SILENCE_LEVEL_IN_DB;
 	private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-	private Rect rect;
+	private RectF rect;
 	private int color = DEFAULT_COLOR;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -47,51 +45,34 @@ public class AudioLevelView extends View
 		        R.styleable.AudioLevel, 0, 0);
 		try
 		{
-			this.level = a.getInteger(R.styleable.AudioLevel_level, INVALID_LEVEL);
-			this.color = a.getColor(R.styleable.AudioLevel_color, DEFAULT_COLOR);
+			this.level = a.getInteger(R.styleable.AudioLevel_level,
+			        SILENCE_LEVEL_IN_DB);
+			this.color = a
+			        .getColor(R.styleable.AudioLevel_color, DEFAULT_COLOR);
 		}
 		finally
 		{
 			a.recycle();
 		}
-		// set the paint to use the invalid color until we have a real value
-		this.paint.setColor(INVALID_COLOR);
+		// set the paint to use
+		this.paint.setColor(this.color);
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	
 	public void setLevel(int level)
 	{
 		if (this.level != level)
 		{
 			// set the level
 			this.level = Math.max(SILENCE_LEVEL_IN_DB, level);
-			// calculate the percentage of pixels we want to fill
-			float percent = 100.0f + ((float) this.level / (float) SILENCE_LEVEL_IN_DB);
-			// calculate the number of pixels we need to draw
-			int pixels = (int) ((float) getWidth() * percent);
-			// setup the rectangle
-			this.rect.set(0, 0, pixels, getHeight());
-			// set the color
-			this.paint.setColor(getColor());
+			// calculate the drawing size
+			this.rect = calculateDrawingArea(getWidth(), getHeight());
 			// redraw
 			invalidate();
 		}
-	}
-
-	public void clearLevel()
-	{
-		// clear the level
-		this.level = INVALID_LEVEL;
-		// reset the color to invalid
-		this.paint.setColor(INVALID_COLOR);
-		// fill the view
-		this.rect.set(0, 0, getWidth(), getHeight());
-		// redraw
-		invalidate();
 	}
 
 	public Integer getLevel()
@@ -101,8 +82,13 @@ public class AudioLevelView extends View
 
 	public void setColor(int color)
 	{
-		// store the color
-		this.color = color;
+		if (this.color != color)
+		{
+			// store the color
+			this.color = color;
+			// redraw
+			invalidate();
+		}
 	}
 
 	public int getColor()
@@ -117,11 +103,10 @@ public class AudioLevelView extends View
 	@Override
 	public void onSizeChanged(int width, int height, int oldwidth, int oldheight)
 	{
-		// size the drawing rectangle
-		this.rect = new Rect(0, 0, width, height);
+		// calculate the drawing size
+		this.rect = calculateDrawingArea(width, height);
 	}
 
-	
 	@Override
 	protected void onDraw(Canvas canvas)
 	{
@@ -142,4 +127,22 @@ public class AudioLevelView extends View
 	// /////////////////////////////////////////////////////////////////////////
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
+
+	private RectF calculateDrawingArea(int width, int height)
+	{
+		// Account for padding
+		float xpad = (float) (getPaddingLeft() + getPaddingRight());
+		float ypad = (float) (getPaddingTop() + getPaddingBottom());
+
+		float ww = (float) width - xpad;
+		float hh = (float) height - ypad;
+
+		// calculate the percentage of pixels we want to fill
+		float percent = 100.0f - 100.0f * ((float) this.level / (float) SILENCE_LEVEL_IN_DB);
+		// calculate the number of pixels we need to draw
+		float pixels = ww * percent;
+		
+		// size the drawing rectangle
+		return new RectF(getPaddingLeft(), getPaddingTop(), pixels, hh);
+	}
 }

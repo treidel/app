@@ -293,6 +293,8 @@ public class SPPManager implements SPPConnection.Listener,
 			// ignore if this is stale
 			if (this.connection != SPPManager.this.connection)
 			{
+				Log.w(TAG, "ignoring stale connection");
+				this.connection.close();
 				return;
 			}
 			// run the state machine
@@ -315,6 +317,8 @@ public class SPPManager implements SPPConnection.Listener,
 			// ignore if this is stale
 			if (this.connection != SPPManager.this.connection)
 			{
+				Log.w(TAG, "ignoring stale connection");
+				this.connection.close();
 				return;
 			}
 			// run the state machine

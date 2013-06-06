@@ -1,16 +1,11 @@
 package com.jebussystems.levelingglass.activity;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
+import java.util.Map;
 
 import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.content.Context;
-import android.os.Handler;
-import android.os.Message;
+import android.content.Intent;
+import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,116 +13,178 @@ import android.view.ViewGroup;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
-import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 import com.jebussystems.levelingglass.control.ControlV1;
-import com.jebussystems.levelingglass.control.ControlV1.Level;
+import com.jebussystems.levelingglass.control.ControlV1.LevelDataRecord;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
 public class MainActivity extends Activity
 {
-	private static final String TAG = "main";
+	// /////////////////////////////////////////////////////////////////////////
+	// constants
+	// /////////////////////////////////////////////////////////////////////////
+
+	private static final String TAG = "activity.main";
+
+	// /////////////////////////////////////////////////////////////////////////
+	// class variables
+	// /////////////////////////////////////////////////////////////////////////
+
+	// /////////////////////////////////////////////////////////////////////////
+	// object variables
+	// /////////////////////////////////////////////////////////////////////////
+
+	private ControlEventListener listener = new ControlEventListener();
+	private ViewGroup layout = null;
+
+	// /////////////////////////////////////////////////////////////////////////
+	// constructors
+	// /////////////////////////////////////////////////////////////////////////
+
+	// /////////////////////////////////////////////////////////////////////////
+	// public methods
+	// /////////////////////////////////////////////////////////////////////////
+
+	// /////////////////////////////////////////////////////////////////////////
+	// protected methods
+	// /////////////////////////////////////////////////////////////////////////
+
+	@Override
+	protected void onCreate(Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
+
+		Log.i(TAG, "onCreate");
+
+		// setup the layout
+		setContentView(R.layout.main);
+
+		// find the layout
+		this.layout = (ViewGroup) findViewById(R.id.main_layout);
+	}
 
 	@Override
 	protected void onStart()
 	{
 		// call the base class
 		super.onStart();
-		// setup the layout
-		setContentView(R.layout.main);
+
+		Log.i(TAG, "onStart");
+
 		// get the application object
 		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
+
 		// get the control object
 		ControlV1 control = application.getControl();
-		control.setLevel(Level.PEAK);
-		// get the Bluetooth manager object
-		SPPManager manager = control.getManager();
-		// add our listener
-		control.addListener(new LevelListener());
-		// get a list of paired bluetooth devices
-		Set<BluetoothDevice> devices = BluetoothAdapter.getDefaultAdapter()
-		        .getBondedDevices();
-		BluetoothDevice device = devices.iterator().next();
-		// connect
-		manager.connect(device);
+		// get the control object and add ourselves as a listener
+		control.addListener(listener);
 
+		// see if we're ready to go
+		if (null == control.getChannels())
+		{
+			// not ready to display levels - switch to the waiting activity
+			Intent intent = new Intent(this, WaitingForConnectionActivity.class);
+			startActivity(intent);
+			// done
+			return;
+		}
+
+		// do the layout
+		populateLevelViews();
+
+		// try the populate the level views
+		updateLevelData();
 	}
 
-	private class LevelListener implements ControlV1.LevelListener,
-	        Handler.Callback
+	@Override
+	protected void onStop()
 	{
-		private static final int CHANNEL = 1;
-		private static final int LEVEL_DATA = 2;
+		super.onStop();
 
-		private final Handler handler;
-		// get the layout
-		private final ViewGroup layout = (ViewGroup) findViewById(R.id.main_layout);
+		Log.i(TAG, "onStop");
 
-		public LevelListener()
+		// get the application object
+		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
+
+		// get the control object and add ourselves as a listener
+		application.getControl().removeListener(listener);
+	}
+
+	// /////////////////////////////////////////////////////////////////////////
+	// private methods
+	// /////////////////////////////////////////////////////////////////////////
+
+	private void populateLevelViews()
+	{
+		// get the application object
+		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
+		// get the control object and add ourselves as a listener
+		ControlV1 control = application.getControl();
+
+		for (int level : control.getChannels())
 		{
-			// create a handler that allows us to send messages to the UI thread
-			this.handler = new Handler(this);
+			// explode the view layout
+			LayoutInflater vi = (LayoutInflater) getApplicationContext()
+			        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+			View view = vi.inflate(R.layout.level, null);
+			// insert into main view
+			layout.addView(view, level - 1, new ViewGroup.LayoutParams(
+			        ViewGroup.LayoutParams.MATCH_PARENT,
+			        ViewGroup.LayoutParams.MATCH_PARENT));
 		}
+	}
 
-		public void handleChannelDiscovery(Collection<Integer> channels)
+	private void updateLevelData()
+	{
+		// get the application object
+		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
+		// get the control object and add ourselves as a listener
+		ControlV1 control = application.getControl();
+		// query the level data from the control object
+		Map<Integer, ControlV1.LevelDataRecord> records = control
+		        .getLevelDataRecord();
+		if (null != records)
 		{
-			for (int channel : channels)
+			for (LevelDataRecord record : records.values())
 			{
-				// send a message to the UI thread to handle this
-				Message message = this.handler.obtainMessage(CHANNEL, channel,
-				        0);
-				message.sendToTarget();
+				// find the layout view
+				View view = layout.getChildAt(record.getChannel() - 1);
+				// find the audio level view
+				AudioLevelView audiolevel = (AudioLevelView) view
+				        .findViewById(R.id.audio_view);
+				// set the level
+				audiolevel.setLevel(record.getLevelInDB());
 			}
 		}
+	}
 
-		public void handleLevelData(List<Integer> levels)
+	// /////////////////////////////////////////////////////////////////////////
+	// inner classes
+	// /////////////////////////////////////////////////////////////////////////
+
+	private class ControlEventListener implements ControlV1.EventListener
+	{
+		@Override
+		public void notifyConnected()
 		{
-			// iterate through the levels
-			ListIterator<Integer> iterator = levels.listIterator();
-			while (true == iterator.hasNext())
-			{
-				// send a message to the UI thread to handle this
-				Message message = this.handler.obtainMessage(CHANNEL, iterator.nextIndex(), iterator.next());
-
-				message.sendToTarget();				
-			}
+			Log.w(TAG, "unexpected notifyConnected event");
 		}
 
 		@Override
-		public boolean handleMessage(Message msg)
+		public void notifyLevelsUpdated()
 		{
-			// see what message we got
-			switch (msg.what)
+			runOnUiThread(new Runnable()
 			{
-				case CHANNEL:
-				{
-					// explode the view layout
-					LayoutInflater vi = (LayoutInflater) getApplicationContext()
-					        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-					View view = vi.inflate(R.layout.level, null);
-					// insert into main view
-					layout.addView(view, msg.arg1 - 1, new ViewGroup.LayoutParams(
-					        ViewGroup.LayoutParams.MATCH_PARENT,
-					        ViewGroup.LayoutParams.MATCH_PARENT));
-				}
-					break;
 
-				case LEVEL_DATA:
+				@Override
+				public void run()
 				{
-					// find the layout view
-					View view = layout.getChildAt(msg.arg1 - 1);
-					// find the audio level view
-					AudioLevelView audiolevel = (AudioLevelView)view.findViewById(R.id.audio_view);
-					// set the level
-					audiolevel.setLevel(msg.arg2);
+					// run the common update logic
+					updateLevelData();
 				}
-					break;
-				default:
-					Log.e(TAG, "invalid arg1=" + msg.arg1);
-					break;
+			});
 
-			}
-			return true;
 		}
+
 	}
 
 }
