@@ -110,6 +110,26 @@ public class SPPManager implements SPPConnection.Listener,
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	public static boolean checkDeviceForCompatibility(BluetoothDevice device)
+	{
+		// validate that this is a peer'ed device
+		if (false == BluetoothAdapter.getDefaultAdapter().getBondedDevices()
+		        .contains(device))
+		{
+			Log.w(TAG, "device=" + device.getAddress() + " is not paired");
+			return false;
+		}
+		// make sure the peer supports our service
+		if (false == isUUIDSupportedByDevice(device))
+		{
+			Log.w(TAG,
+			        "SPP service is not supported on device="
+			                + device.getAddress());
+			return false;
+		}
+		return true;
+	}
+	
 	public boolean connect(BluetoothDevice device)
 	{
 		// validate that this is a peer'ed device
@@ -228,7 +248,7 @@ public class SPPManager implements SPPConnection.Listener,
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	private boolean isUUIDSupportedByDevice(BluetoothDevice device)
+	private static boolean isUUIDSupportedByDevice(BluetoothDevice device)
 	{
 		// retrieve the UUIds supported by the peer
 		if (false == device.fetchUuidsWithSdp())

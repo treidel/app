@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Leveling Glass</string>
+    <string name="peerselection_checking_dialog_message">Verifying the device is compatible</string>
+    <string name="peerselection_invalid_dialog_message">The device you selected is not compatible</string>
+    <string name="peerselection_nonefound_dialog_message">No peered devices!</string>
+    <string name="waitingforconnection_cancel">Cancel</string>
 </resources>

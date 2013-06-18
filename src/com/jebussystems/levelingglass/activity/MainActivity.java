@@ -15,6 +15,8 @@ import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.ControlV1;
 import com.jebussystems.levelingglass.control.ControlV1.LevelDataRecord;
+import com.jebussystems.levelingglass.control.ControlV1.PeakLevelDataRecord;
+import com.jebussystems.levelingglass.control.ControlV1.VULevelDataRecord;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
 public class MainActivity extends Activity
@@ -75,8 +77,6 @@ public class MainActivity extends Activity
 
 		// get the control object
 		ControlV1 control = application.getControl();
-		// get the control object and add ourselves as a listener
-		control.addListener(listener);
 
 		// see if we're ready to go
 		if (null == control.getChannels())
@@ -87,6 +87,9 @@ public class MainActivity extends Activity
 			// done
 			return;
 		}
+		
+		// add ourselves as a listener
+		control.addListener(listener);
 
 		// do the layout
 		populateLevelViews();
@@ -125,7 +128,7 @@ public class MainActivity extends Activity
 			// explode the view layout
 			LayoutInflater vi = (LayoutInflater) getApplicationContext()
 			        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-			View view = vi.inflate(R.layout.level, null);
+			View view = vi.inflate(R.layout.peaklevel, null);
 			// insert into main view
 			layout.addView(view, level - 1, new ViewGroup.LayoutParams(
 			        ViewGroup.LayoutParams.MATCH_PARENT,
@@ -151,8 +154,21 @@ public class MainActivity extends Activity
 				// find the audio level view
 				AudioLevelView audiolevel = (AudioLevelView) view
 				        .findViewById(R.id.audio_view);
-				// set the level
-				audiolevel.setLevel(record.getLevelInDB());
+				switch (record.getType())
+				{
+					case PEAK:
+						// set the level
+						audiolevel.setLevel(((PeakLevelDataRecord)record).getPeakLevelInDB());
+						break;
+					case VU:
+						// set the level
+						audiolevel.setLevel(((VULevelDataRecord)record).getPowerLevelInDB());
+						break;
+					default:
+						Log.wtf(TAG, "unexpected level=" + record.getType());
+						return;
+				}
+
 			}
 		}
 	}
@@ -164,9 +180,9 @@ public class MainActivity extends Activity
 	private class ControlEventListener implements ControlV1.EventListener
 	{
 		@Override
-		public void notifyConnected()
+		public void notifyStateChange(ControlV1.State state)
 		{
-			Log.w(TAG, "unexpected notifyConnected event");
+			Log.w(TAG, "ignore");
 		}
 
 		@Override

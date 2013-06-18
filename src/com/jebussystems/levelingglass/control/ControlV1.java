@@ -62,14 +62,77 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	}
 
-	public interface EventListener
+	public abstract static class LevelDataRecord
 	{
-		void notifyConnected();
+		private final int channel;
 
-		void notifyLevelsUpdated();
+		private LevelDataRecord(int channel)
+		{
+			this.channel = channel;
+		}
+
+		public int getChannel()
+		{
+			return channel;
+		}
+
+		public abstract Level getType();
+
 	}
 
-	private enum State
+	public static class PeakLevelDataRecord extends LevelDataRecord
+	{
+		private final int peakLevelInDB;
+
+		private PeakLevelDataRecord(int channel, int peakLevelInDB)
+		{
+			super(channel);
+			this.peakLevelInDB = peakLevelInDB;
+		}
+
+		public int getPeakLevelInDB()
+		{
+			return peakLevelInDB;
+		}
+
+		@Override
+		public Level getType()
+		{
+			return Level.PEAK;
+		}
+	}
+
+	public static class VULevelDataRecord extends LevelDataRecord
+	{
+		private final int powerLevelInDB;
+
+		private VULevelDataRecord(int channel, int powerLevelInDB)
+		{
+			super(channel);
+			this.powerLevelInDB = powerLevelInDB;
+		}
+
+		public int getPowerLevelInDB()
+		{
+			return powerLevelInDB;
+		}
+
+		@Override
+		public Level getType()
+		{
+			return Level.VU;
+		}
+
+	}
+
+	public interface EventListener
+	{
+		void notifyLevelsUpdated();
+
+		void notifyStateChange(State state);
+	}
+
+	public enum State
 	{
 		WAIT_FOR_CONNECTION, SYNCHRONIZING, CONNECTED
 	}
@@ -142,14 +205,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 		// create the SPP mananger
 		this.manager = new SPPManager(this);
-		// we care about state transitions too
+		// we care about state transitions
 		this.manager.addSPPStateListener(this);
-		
+
 		// setup the state machine state change listener
 		this.stateMachineInstance.addListener(new StateMachineListener());
-
-		// TBD: restore the stored level (if it exists)
-
 
 		Log.d(TAG, "ControlV1 exit");
 	}
@@ -264,7 +324,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// private method implementations
 	// ////////////////////////////////////////////////////////////////////////
 
-	private void sendLevelRequest()
+	private void sendLevelRequest(int channel)
 	{
 		Log.d(TAG, "sendLevelRequest enter level=" + level);
 
@@ -272,6 +332,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
 		        .newBuilder();
 		setLevelRequestBuilder.setType(level.getLevelType());
+		setLevelRequestBuilder.setChannel(channel);
 		V1.Request.Builder requestBuilder = V1.Request.newBuilder();
 		requestBuilder.setSetlevel(setLevelRequestBuilder);
 		requestBuilder.setType(V1.RequestType.SETLEVEL);
@@ -387,11 +448,22 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 				for (v1.V1.LevelRecord record : notification.getLevel()
 				        .getRecordsList())
 				{
-					this.levelDataRecords.put(
-					        record.getChannel(),
-					        new LevelDataRecord(record.getChannel(), record
-					                .getLevelInDB(), Level.findLevel(record
-					                .getType())));
+					switch (record.getType())
+					{
+						case PEAK:
+							// create + store a peak data record
+							this.levelDataRecords.put(
+							        record.getChannel(),
+							        new PeakLevelDataRecord(
+							                record.getChannel(), record
+							                        .getPeakInDB()));
+							break;
+						case VU:
+							this.levelDataRecords.put(record.getChannel(),
+							        new VULevelDataRecord(record.getChannel(),
+							                record.getPowerInDB()));
+
+					}
 				}
 				synchronized (this.listeners)
 				{
@@ -412,53 +484,21 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
 
-	public static class LevelDataRecord
-	{
-		private final int channel;
-		private final int levelInDB;
-		private final Level type;
-
-		public LevelDataRecord(int channel, int levelInDB, Level type)
-		{
-			this.channel = channel;
-			this.levelInDB = levelInDB;
-			this.type = type;
-		}
-
-		public int getChannel()
-		{
-			return channel;
-		}
-
-		public int getLevelInDB()
-		{
-			return levelInDB;
-		}
-
-		public Level getType()
-		{
-			return type;
-		}
-	}
-
 	private class StateMachineListener implements
 	        StateMachine.StateChangeListener<State>
 	{
 
 		@Override
-        public void notifyStateChange(State state)
-        {
-			if (true == State.CONNECTED.equals(state))
+		public void notifyStateChange(State state)
+		{
+			synchronized (listeners)
 			{
-				synchronized(listeners)
+				for (EventListener listener : listeners)
 				{
-					for (EventListener listener : listeners)
-					{
-						listener.notifyConnected();
-					}
+					listener.notifyStateChange(state);
 				}
 			}
-        }
+		}
 	}
 
 	private class LevelChangeMessage implements Runnable
@@ -528,14 +568,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		public State handleEvent(ControlV1 object, Object data)
 		{
 			V1.QueryAudioChannelsResponse response = (V1.QueryAudioChannelsResponse) data;
-			// store the list of channels
 			object.channels = new TreeSet<Integer>();
 			for (int channel : response.getChannelsList())
 			{
+				// store the channel
 				object.channels.add(channel);
+				// tell the server to start sending us level notifications
+				object.sendLevelRequest(channel);
 			}
-			// tell the server to start sending us level notifications
-			object.sendLevelRequest();
+
 			// now connected
 			return State.CONNECTED;
 		}
@@ -560,8 +601,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
-			// send the new level
-			object.sendLevelRequest();
+			for (int channel : object.channels)
+			{
+				// send the new level
+				object.sendLevelRequest(channel);
+			}
 			// no change in state
 			return null;
 		}

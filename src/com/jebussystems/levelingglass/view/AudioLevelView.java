@@ -17,7 +17,9 @@ public class AudioLevelView extends View
 	// constants
 	// /////////////////////////////////////////////////////////////////////////
 
-	private static final int SILENCE_LEVEL_IN_DB = -98;
+	private static final int DEFAULT_CEILING_IN_DB = 0;
+	private static final int DEFAULT_FLOOR_IN_DB = -100;
+	private static final int DEFAULT_LEVEL_IN_DB = DEFAULT_FLOOR_IN_DB;
 	private static final int DEFAULT_COLOR = Color.BLUE;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -28,7 +30,9 @@ public class AudioLevelView extends View
 	// variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private int level = SILENCE_LEVEL_IN_DB;
+	private int floor;
+	private int ceiling;
+	private int level;
 	private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private RectF rect;
 	private int color = DEFAULT_COLOR;
@@ -45,10 +49,14 @@ public class AudioLevelView extends View
 		        R.styleable.AudioLevel, 0, 0);
 		try
 		{
-			this.level = a.getInteger(R.styleable.AudioLevel_level,
-			        SILENCE_LEVEL_IN_DB);
 			this.color = a
 			        .getColor(R.styleable.AudioLevel_color, DEFAULT_COLOR);
+			this.floor = a.getInt(R.styleable.AudioLevel_floor_in_db,
+			        DEFAULT_FLOOR_IN_DB);
+			this.ceiling = a.getInt(R.styleable.AudioLevel_ceiling_in_db,
+			        DEFAULT_CEILING_IN_DB);
+			this.level = a.getInt(R.styleable.AudioLevel_level_in_db,
+			        DEFAULT_LEVEL_IN_DB);
 		}
 		finally
 		{
@@ -62,30 +70,13 @@ public class AudioLevelView extends View
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	public void setLevel(int level)
-	{
-		if (this.level != level)
-		{
-			// set the level
-			this.level = Math.max(SILENCE_LEVEL_IN_DB, level);
-			// calculate the drawing size
-			this.rect = calculateDrawingArea(getWidth(), getHeight());
-			// redraw
-			invalidate();
-		}
-	}
-
-	public Integer getLevel()
-	{
-		return level;
-	}
-
 	public void setColor(int color)
 	{
 		if (this.color != color)
 		{
-			// store the color
+			// store the colord sr
 			this.color = color;
+
 			// redraw
 			invalidate();
 		}
@@ -94,6 +85,54 @@ public class AudioLevelView extends View
 	public int getColor()
 	{
 		return this.color;
+	}
+
+	public void setLevel(int level)
+	{
+		if (this.level != level)
+		{
+			// set the level
+			this.level = level;
+			// calculate the drawing size
+			this.rect = calculateDrawingArea(getWidth(), getHeight());
+			// redraw
+			invalidate();
+		}
+	}
+
+	public int getLevel()
+	{
+		return level;
+	}
+
+	public void setCeiling(int ceiling)
+	{
+		// store the ceiling
+		this.ceiling = ceiling;
+		// calculate the drawing size
+		this.rect = calculateDrawingArea(getWidth(), getHeight());
+		// redraw
+		invalidate();
+	}
+
+	public int getCeiling()
+	{
+		return ceiling;
+	}
+
+	public void setFloor(int floor)
+	{
+		// store the floor
+		this.floor = floor;
+		// calculate the drawing size
+		this.rect = calculateDrawingArea(getWidth(), getHeight());
+		// redraw
+		invalidate();
+	}
+
+	public int getFloor()
+	{
+		return floor;
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -137,11 +176,22 @@ public class AudioLevelView extends View
 		float ww = (float) width - xpad;
 		float hh = (float) height - ypad;
 
-		// calculate the percentage of pixels we want to fill
-		float percent = 100.0f - 100.0f * ((float) this.level / (float) SILENCE_LEVEL_IN_DB);
+		// calculate the percent of pixels to draw
+		float percent = 1.0f - ((float) getLevel()
+		        / ((float) getCeiling() + (float) getFloor()));
+		// handle corners
+		if (level > getCeiling())
+		{
+			percent = 1.0f;
+		}
+		else if (level < getFloor())
+		{
+			percent = 0.0f;
+		}
+
 		// calculate the number of pixels we need to draw
 		float pixels = ww * percent;
-		
+
 		// size the drawing rectangle
 		return new RectF(getPaddingLeft(), getPaddingTop(), pixels, hh);
 	}

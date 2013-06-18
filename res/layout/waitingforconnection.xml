@@ -3,13 +3,32 @@
     android:id="@+id/waitingforconnection_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/holo_blue_light"
+    android:background="@android:color/background_dark"
+    android:gravity="center"
     android:orientation="vertical" >
 
     <ProgressBar
-        android:id="@+id/progressbar_view"
+        android:id="@+id/waitingforconnection_progressbar"
         style="?android:attr/progressBarStyleLarge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="4" />
+
+    <TextView
+        android:id="@+id/status_textview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:ems="10"
+        android:gravity="center"
+        android:text="STATUS"
+        android:textAppearance="?android:attr/textAppearanceLarge" >
+    </TextView>
+
+    <Button
+        android:id="@+id/cancel_button"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:text="@android:string/cancel" />
 
 </LinearLayout>

@@ -8,9 +8,13 @@
     android:padding="2dp" >
 
     <com.jebussystems.levelingglass.view.AudioLevelView
+        android:id="@+id/audio_view"
         android:layout_width="match_parent"
         android:layout_height="?android:attr/listPreferredItemHeight"
-        custom:color="@android:color/holo_green_light"
-        android:id="@+id/audio_view" /> 
+        android:padding="2dp"
+        custom:ceiling_in_db="0"
+        custom:floor_in_db="-100"
+        custom:level_in_db="-50"
+        custom:color="@android:color/holo_blue_light" />
 
 </LinearLayout>
