@@ -18,6 +18,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
 import com.jebussystems.levelingglass.R;
+import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 
 public class PeerSelectionActivity extends Activity
@@ -38,6 +39,7 @@ public class PeerSelectionActivity extends Activity
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
 
+	private LevelingGlassApplication application;
 	private ArrayAdapter<BluetoothDevice> adapter;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -59,12 +61,15 @@ public class PeerSelectionActivity extends Activity
 
 		Log.d(TAG, "onCreate");
 
+		// fetch the application
+		this.application = (LevelingGlassApplication) getApplication();
+		
 		// setup the layout
 		setContentView(R.layout.peerselection);
 
 		// create the adapter
 		this.adapter = new ArrayAdapter<BluetoothDevice>(this,
-		        android.R.id.text1);
+				android.R.layout.simple_list_item_1);
 
 		// find the listview
 		ListView listView = (ListView) findViewById(R.id.peers_listview);
@@ -74,7 +79,7 @@ public class PeerSelectionActivity extends Activity
 
 		// setup the listener
 		listView.setOnItemClickListener(new ItemClickListener());
-		
+
 	}
 
 	@Override
@@ -84,6 +89,15 @@ public class PeerSelectionActivity extends Activity
 
 		Log.d(TAG, "onStart");
 
+		// see if we already have a configured device
+		BluetoothDevice device = application.getDevice();
+		if (null != device)
+		{
+			// start the connection activity
+			startWaitForConnectionActivity(device);
+			return;
+		}
+		
 		// load the list of devices
 		loadDevices();
 	}
@@ -113,7 +127,7 @@ public class PeerSelectionActivity extends Activity
 		{
 			Log.d(TAG, "no devices found");
 
-			// device is not compatible so let them know
+			// no devices found so let them know
 			AlertDialog.Builder builder = new AlertDialog.Builder(
 			        PeerSelectionActivity.this);
 			builder.setMessage(getResources().getString(
@@ -131,6 +145,17 @@ public class PeerSelectionActivity extends Activity
 
 		// add all of the devices
 		this.adapter.addAll(devices);
+	}
+
+	private void startWaitForConnectionActivity(BluetoothDevice device)
+	{
+		// tell the waiting for connection activity to take over
+		Intent intent = new Intent(PeerSelectionActivity.this,
+		        WaitingForConnectionActivity.class);
+		intent.putExtra(WaitingForConnectionActivity.BLUETOOTHDEVICE_NAME,
+		        device);
+		// take over
+		startActivity(intent);
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -176,17 +201,14 @@ public class PeerSelectionActivity extends Activity
 				invalidBuilder.setPositiveButton(android.R.string.ok,
 				        new NotCompatibleOkClickListener());
 				invalidBuilder.setCancelable(true);
+				// create + run the dialog
+				final AlertDialog invalidDialog = invalidBuilder.create();
+				invalidDialog.show();
 				return;
 
 			}
-
-			// tell the waiting for connection activity to take over
-			Intent intent = new Intent(PeerSelectionActivity.this,
-			        WaitingForConnectionActivity.class);
-			intent.putExtra(WaitingForConnectionActivity.BLUETOOTHDEVICE_NAME,
-			        device);
-			// take over
-			startActivity(intent);
+			// start the connection activity
+			startWaitForConnectionActivity(device);
 		}
 
 	}

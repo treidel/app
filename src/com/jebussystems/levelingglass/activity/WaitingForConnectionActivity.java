@@ -20,8 +20,8 @@ public class WaitingForConnectionActivity extends Activity
 	public static final String BLUETOOTHDEVICE_NAME = WaitingForConnectionActivity.class
 	        .toString() + ".bluetoothdevice";
 
+	private final LevelingGlassApplication application = (LevelingGlassApplication)getApplication();
 	private final ControlEventListener listener = new ControlEventListener();
-	private ControlV1 control;
 	private TextView statusTextView;
 
 	@Override
@@ -43,12 +43,8 @@ public class WaitingForConnectionActivity extends Activity
 		BluetoothDevice device = getIntent().getParcelableExtra(
 		        BLUETOOTHDEVICE_NAME);
 
-		// store the control
-		this.control = ((LevelingGlassApplication) getApplication())
-		        .getControl();
-
 		// start the connection
-		this.control.getManager().connect(device);
+		application.getControl().getManager().connect(device);
 
 	}
 
@@ -59,7 +55,7 @@ public class WaitingForConnectionActivity extends Activity
 		Log.i(TAG, "onStart");
 
 		// add ourselves as a listener
-		this.control.addListener(listener);
+		application.getControl().addListener(listener);
 	}
 
 	@Override
@@ -69,7 +65,7 @@ public class WaitingForConnectionActivity extends Activity
 		Log.i(TAG, "onStop");
 
 		// remove ourselves as a listener
-		this.control.removeListener(listener);
+		application.getControl().removeListener(listener);
 	}
 
 	private class ControlEventListener implements ControlV1.EventListener
@@ -114,7 +110,7 @@ public class WaitingForConnectionActivity extends Activity
 		public void onClick(View v)
 		{
 			// force a disconnection
-			control.getManager().disconnect();
+			application.getControl().getManager().disconnect();
 		}
 
 	}

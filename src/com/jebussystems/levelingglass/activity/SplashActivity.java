@@ -1,13 +1,12 @@
 package com.jebussystems.levelingglass.activity;
 
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 
 import com.jebussystems.levelingglass.R;
@@ -31,8 +30,7 @@ public class SplashActivity extends Activity
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private final LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
-	private final Timer timer = new Timer();
+	private LevelingGlassApplication application;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -50,9 +48,12 @@ public class SplashActivity extends Activity
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
-		
+
 		Log.d(TAG, "onCreate");
-		
+
+		// store the reference to the application
+		this.application = (LevelingGlassApplication) getApplication();
+
 		// setup the layout
 		setContentView(R.layout.splash);
 	}
@@ -63,45 +64,41 @@ public class SplashActivity extends Activity
 		super.onStart();
 
 		Log.d(TAG, "onStart");
-		
-		// start a timer to fire after a delay
-		timer.schedule(new TimerTask()
+
+		// create the handler for the delayed task
+		Handler handler = new Handler();
+		handler.postDelayed(new Runnable()
 		{
 			@Override
 			public void run()
 			{
-				Log.d(TAG, "timer expired");				
-				runOnUiThread(new Runnable()
+				// don't come back here if back is pressed
+				finish();
+				// if we have a stored bluetooth device then start the
+				// main activity
+				BluetoothDevice device = application.getDevice();
+				if (null != device)
 				{
-
-					@Override
-					public void run()
-					{
-						// if we have a stored bluetooth device then start the
-						// main activity
-						BluetoothDevice device = application.getDevice();
-						if (null != device)
-						{
-							Log.d(TAG, "starting wait for connection activity");
-							// ready to connect
-							Intent intent = new Intent(SplashActivity.this,
-							        WaitingForConnectionActivity.class);
-							startActivity(intent);
-						}
-						else
-						{
-							Log.d(TAG, "staring peer selection activity");
-							// otherwise start the peer selection activity
-							Intent intent = new Intent(SplashActivity.this,
-							        PeerSelectionActivity.class);
-							startActivity(intent);
-						}
-					}
-				});
-
+					Log.d(TAG, "starting wait for connection activity");
+					// ready to connect
+					Intent intent = new Intent(SplashActivity.this,
+					        WaitingForConnectionActivity.class);
+					intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
+					        | Intent.FLAG_ACTIVITY_NEW_TASK);
+					startActivity(intent);
+				}
+				else
+				{
+					Log.d(TAG, "staring peer selection activity");
+					// otherwise start the peer selection activity
+					Intent intent = new Intent(SplashActivity.this,
+					        PeerSelectionActivity.class);
+					startActivity(intent);
+				}
 			}
 		}, TimeUnit.SECONDS.toMillis(SPLASH_DELAY_IN_SECS));
 	}
+
 
 	// /////////////////////////////////////////////////////////////////////////
 	// private methods

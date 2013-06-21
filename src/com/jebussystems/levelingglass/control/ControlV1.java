@@ -2,13 +2,11 @@ package com.jebussystems.levelingglass.control;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -20,6 +18,7 @@ import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPMessageHandler;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPState;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPStateListener;
+import com.jebussystems.levelingglass.util.EnumMapper;
 import com.jebussystems.levelingglass.util.StateMachine;
 
 public class ControlV1 implements SPPMessageHandler, SPPStateListener
@@ -28,102 +27,6 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// /////////////////////////////////////////////////////////////////////////
 	// type definitions
 	// /////////////////////////////////////////////////////////////////////////
-
-	public enum Level
-	{
-		NONE(V1.LevelType.NONE), VU(V1.LevelType.VU), PEAK(V1.LevelType.PEAK);
-
-		private static final Map<V1.LevelType, Level> externalToInternalMap = new EnumMap<V1.LevelType, Level>(
-		        V1.LevelType.class);
-
-		private final V1.LevelType levelType;
-
-		static
-		{
-			externalToInternalMap.put(V1.LevelType.NONE, NONE);
-			externalToInternalMap.put(V1.LevelType.PEAK, PEAK);
-			externalToInternalMap.put(V1.LevelType.VU, VU);
-		}
-
-		private Level(V1.LevelType levelType)
-		{
-			this.levelType = levelType;
-		}
-
-		public static Level findLevel(V1.LevelType levelType)
-		{
-			return externalToInternalMap.get(levelType);
-		}
-
-		public V1.LevelType getLevelType()
-		{
-			return levelType;
-		}
-
-	}
-
-	public abstract static class LevelDataRecord
-	{
-		private final int channel;
-
-		private LevelDataRecord(int channel)
-		{
-			this.channel = channel;
-		}
-
-		public int getChannel()
-		{
-			return channel;
-		}
-
-		public abstract Level getType();
-
-	}
-
-	public static class PeakLevelDataRecord extends LevelDataRecord
-	{
-		private final int peakLevelInDB;
-
-		private PeakLevelDataRecord(int channel, int peakLevelInDB)
-		{
-			super(channel);
-			this.peakLevelInDB = peakLevelInDB;
-		}
-
-		public int getPeakLevelInDB()
-		{
-			return peakLevelInDB;
-		}
-
-		@Override
-		public Level getType()
-		{
-			return Level.PEAK;
-		}
-	}
-
-	public static class VULevelDataRecord extends LevelDataRecord
-	{
-		private final int powerLevelInDB;
-
-		private VULevelDataRecord(int channel, int powerLevelInDB)
-		{
-			super(channel);
-			this.powerLevelInDB = powerLevelInDB;
-		}
-
-		public int getPowerLevelInDB()
-		{
-			return powerLevelInDB;
-		}
-
-		@Override
-		public Level getType()
-		{
-			return Level.VU;
-		}
-
-	}
 
 	public interface EventListener
 	{
@@ -134,7 +37,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public enum State
 	{
-		WAIT_FOR_CONNECTION, SYNCHRONIZING, CONNECTED
+		CONNECTING, SYNCHRONIZING, CONNECTED
 	}
 
 	private enum Event
@@ -152,8 +55,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private static StateMachine<State, Event, ControlV1, Object> stateMachine = new StateMachine<State, Event, ControlV1, Object>(
-	        State.WAIT_FOR_CONNECTION);
+	private static final EnumMapper<Level, V1.LevelType> levelMapper = new EnumMapper<Level, V1.LevelType>(
+	        Level.class, V1.LevelType.class);
+	private static final StateMachine<State, Event, ControlV1, Object> stateMachine = new StateMachine<State, Event, ControlV1, Object>(
+	        State.CONNECTING);
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -162,12 +67,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private final ScheduledExecutorService executor = Executors
 	        .newSingleThreadScheduledExecutor();
 	private final SPPManager manager;
-	private Level level = Level.NONE;
 	private final Collection<EventListener> listeners = new LinkedList<EventListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
 	private StateMachine<State, Event, ControlV1, Object>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
-	private Set<Integer> channels = null;
+	private Map<Integer, Level> channelToLevelMapping = null;
 	private Map<Integer, LevelDataRecord> levelDataRecords = null;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -176,11 +80,17 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	static
 	{
-		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.CONNECTED,
+		// set the enum mapper
+		levelMapper.addMapping(Level.NONE, V1.LevelType.NONE);
+		levelMapper.addMapping(Level.PEAK, V1.LevelType.PEAK);
+		levelMapper.addMapping(Level.VU, V1.LevelType.VU);
+
+		// setup the state machine
+		stateMachine.addHandler(State.CONNECTING, Event.CONNECTED,
 		        new ConnectHandler());
-		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.DISCONNECTED,
+		stateMachine.addHandler(State.CONNECTING, Event.DISCONNECTED,
 		        new DisconnectHandler());
-		stateMachine.addHandler(State.WAIT_FOR_CONNECTION, Event.LEVEL_CHANGE,
+		stateMachine.addHandler(State.CONNECTING, Event.LEVEL_CHANGE,
 		        stateMachine.createDoNothingHandler());
 		stateMachine.addHandler(State.SYNCHRONIZING,
 		        Event.QUERY_CHANNELS_RESPONSE,
@@ -218,25 +128,18 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	public void setLevel(Level level)
+	public void updateLevels(Map<Integer, Level> levels)
 	{
-		Log.d(TAG, "setLevel enter level=" + level.toString());
+		Log.d(TAG, "updateLevels enter");
 
-		// store the level
-		this.level = level;
-
-		// TBD: persist this
+		// store the new settings
+		this.channelToLevelMapping = levels;
 
 		// trigger the state machine
 		LevelChangeMessage message = new LevelChangeMessage();
 		this.executor.execute(message);
 
 		Log.d(TAG, "setLevel exit");
-	}
-
-	public Level getLevel()
-	{
-		return level;
 	}
 
 	public void addListener(EventListener listener)
@@ -262,7 +165,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public Set<Integer> getChannels()
 	{
-		return channels;
+		return channelToLevelMapping.keySet();
 	}
 
 	public Map<Integer, LevelDataRecord> getLevelDataRecord()
@@ -324,14 +227,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// private method implementations
 	// ////////////////////////////////////////////////////////////////////////
 
-	private void sendLevelRequest(int channel)
+	private void sendLevelRequest(int channel, Level level)
 	{
-		Log.d(TAG, "sendLevelRequest enter level=" + level);
+		Log.d(TAG, "sendLevelRequest enter channel=" + channel + " level="
+		        + level);
 
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
 		        .newBuilder();
-		setLevelRequestBuilder.setType(level.getLevelType());
+		setLevelRequestBuilder.setType(levelMapper.mapToExternal(level));
 		setLevelRequestBuilder.setChannel(channel);
 		V1.Request.Builder requestBuilder = V1.Request.newBuilder();
 		requestBuilder.setSetlevel(setLevelRequestBuilder);
@@ -568,13 +472,14 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		public State handleEvent(ControlV1 object, Object data)
 		{
 			V1.QueryAudioChannelsResponse response = (V1.QueryAudioChannelsResponse) data;
-			object.channels = new TreeSet<Integer>();
 			for (int channel : response.getChannelsList())
 			{
-				// store the channel
-				object.channels.add(channel);
-				// tell the server to start sending us level notifications
-				object.sendLevelRequest(channel);
+				// if we don't know about this channel populate
+				if (false == object.channelToLevelMapping.containsKey(channel))
+				{
+					// store the channel
+					object.channelToLevelMapping.put(channel, Level.NONE);
+				}
 			}
 
 			// now connected
@@ -591,7 +496,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			// clear any level data we may have
 			object.levelDataRecords = null;
 			// now connected
-			return State.WAIT_FOR_CONNECTION;
+			return State.CONNECTING;
 		}
 	}
 
@@ -601,10 +506,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
-			for (int channel : object.channels)
+			for (Map.Entry<Integer, Level> entry : object.channelToLevelMapping
+			        .entrySet())
 			{
 				// send the new level
-				object.sendLevelRequest(channel);
+				object.sendLevelRequest(entry.getKey(), entry.getValue());
 			}
 			// no change in state
 			return null;

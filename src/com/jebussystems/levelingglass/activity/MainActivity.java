@@ -14,9 +14,9 @@ import android.view.ViewGroup;
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.ControlV1;
-import com.jebussystems.levelingglass.control.ControlV1.LevelDataRecord;
-import com.jebussystems.levelingglass.control.ControlV1.PeakLevelDataRecord;
-import com.jebussystems.levelingglass.control.ControlV1.VULevelDataRecord;
+import com.jebussystems.levelingglass.control.LevelDataRecord;
+import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
+import com.jebussystems.levelingglass.control.VULevelDataRecord;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
 public class MainActivity extends Activity
@@ -35,6 +35,7 @@ public class MainActivity extends Activity
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
 
+	private final LevelingGlassApplication application = (LevelingGlassApplication)getApplication();
 	private ControlEventListener listener = new ControlEventListener();
 	private ViewGroup layout = null;
 
@@ -72,9 +73,6 @@ public class MainActivity extends Activity
 
 		Log.i(TAG, "onStart");
 
-		// get the application object
-		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
-
 		// get the control object
 		ControlV1 control = application.getControl();
 
@@ -105,9 +103,6 @@ public class MainActivity extends Activity
 
 		Log.i(TAG, "onStop");
 
-		// get the application object
-		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
-
 		// get the control object and add ourselves as a listener
 		application.getControl().removeListener(listener);
 	}
@@ -118,8 +113,6 @@ public class MainActivity extends Activity
 
 	private void populateLevelViews()
 	{
-		// get the application object
-		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
 		// get the control object and add ourselves as a listener
 		ControlV1 control = application.getControl();
 
@@ -138,12 +131,10 @@ public class MainActivity extends Activity
 
 	private void updateLevelData()
 	{
-		// get the application object
-		LevelingGlassApplication application = (LevelingGlassApplication) getApplication();
 		// get the control object and add ourselves as a listener
 		ControlV1 control = application.getControl();
 		// query the level data from the control object
-		Map<Integer, ControlV1.LevelDataRecord> records = control
+		Map<Integer, LevelDataRecord> records = control
 		        .getLevelDataRecord();
 		if (null != records)
 		{
