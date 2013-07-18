@@ -4,7 +4,6 @@ import java.util.Map;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -35,7 +34,7 @@ public class MainActivity extends Activity
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private final LevelingGlassApplication application = (LevelingGlassApplication)getApplication();
+	private LevelingGlassApplication application;
 	private ControlEventListener listener = new ControlEventListener();
 	private ViewGroup layout = null;
 
@@ -58,6 +57,9 @@ public class MainActivity extends Activity
 
 		Log.i(TAG, "onCreate");
 
+		// fetch the application
+		this.application = (LevelingGlassApplication) getApplication();
+
 		// setup the layout
 		setContentView(R.layout.main);
 
@@ -73,20 +75,8 @@ public class MainActivity extends Activity
 
 		Log.i(TAG, "onStart");
 
-		// get the control object
+		// get the control object and add ourselves as a listener
 		ControlV1 control = application.getControl();
-
-		// see if we're ready to go
-		if (null == control.getChannels())
-		{
-			// not ready to display levels - switch to the waiting activity
-			Intent intent = new Intent(this, WaitingForConnectionActivity.class);
-			startActivity(intent);
-			// done
-			return;
-		}
-		
-		// add ourselves as a listener
 		control.addListener(listener);
 
 		// do the layout
@@ -134,8 +124,7 @@ public class MainActivity extends Activity
 		// get the control object and add ourselves as a listener
 		ControlV1 control = application.getControl();
 		// query the level data from the control object
-		Map<Integer, LevelDataRecord> records = control
-		        .getLevelDataRecord();
+		Map<Integer, LevelDataRecord> records = control.getLevelDataRecord();
 		if (null != records)
 		{
 			for (LevelDataRecord record : records.values())
@@ -149,11 +138,13 @@ public class MainActivity extends Activity
 				{
 					case PEAK:
 						// set the level
-						audiolevel.setLevel(((PeakLevelDataRecord)record).getPeakLevelInDB());
+						audiolevel.setLevel(((PeakLevelDataRecord) record)
+						        .getPeakLevelInDB());
 						break;
 					case VU:
 						// set the level
-						audiolevel.setLevel(((VULevelDataRecord)record).getPowerLevelInDB());
+						audiolevel.setLevel(((VULevelDataRecord) record)
+						        .getPowerLevelInDB());
 						break;
 					default:
 						Log.wtf(TAG, "unexpected level=" + record.getType());
@@ -173,7 +164,18 @@ public class MainActivity extends Activity
 		@Override
 		public void notifyStateChange(ControlV1.State state)
 		{
-			Log.w(TAG, "ignore");
+			// if we leave the connected state exit the activity
+			if (false == ControlV1.State.CONNECTED.equals(state))
+			{
+				runOnUiThread(new Runnable()
+				{
+					@Override
+					public void run()
+					{
+						finish();
+					}
+				});
+			}
 		}
 
 		@Override

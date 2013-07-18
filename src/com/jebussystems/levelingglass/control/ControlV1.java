@@ -172,6 +172,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	{
 		return levelDataRecords;
 	}
+	
+	public State getState()
+	{
+		return this.stateMachineInstance.getState();
+	}
 
 	// ////////////////////////////////////////////////////////////////////////
 	// SPPStateListener implementation

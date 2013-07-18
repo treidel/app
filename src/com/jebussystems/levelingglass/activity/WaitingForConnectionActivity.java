@@ -20,7 +20,7 @@ public class WaitingForConnectionActivity extends Activity
 	public static final String BLUETOOTHDEVICE_NAME = WaitingForConnectionActivity.class
 	        .toString() + ".bluetoothdevice";
 
-	private final LevelingGlassApplication application = (LevelingGlassApplication)getApplication();
+	private LevelingGlassApplication application;
 	private final ControlEventListener listener = new ControlEventListener();
 	private TextView statusTextView;
 
@@ -29,6 +29,10 @@ public class WaitingForConnectionActivity extends Activity
 	{
 		super.onCreate(savedInstanceState);
 		Log.i(TAG, "onCreate");
+		
+		// fetch the application
+		this.application = (LevelingGlassApplication) getApplication();
+
 		// setup the layout
 		setContentView(R.layout.waitingforconnection);
 
@@ -43,9 +47,12 @@ public class WaitingForConnectionActivity extends Activity
 		BluetoothDevice device = getIntent().getParcelableExtra(
 		        BLUETOOTHDEVICE_NAME);
 
+		// populate the peer name
+		TextView peerTextView = (TextView) findViewById(R.id.peer_textview);
+		peerTextView.setText(device.toString());
+		
 		// start the connection
 		application.getControl().getManager().connect(device);
-
 	}
 
 	@Override
@@ -56,6 +63,9 @@ public class WaitingForConnectionActivity extends Activity
 
 		// add ourselves as a listener
 		application.getControl().addListener(listener);
+		
+		// update the state 
+		this.statusTextView.setText(application.getControl().getState().toString());
 	}
 
 	@Override
@@ -111,6 +121,9 @@ public class WaitingForConnectionActivity extends Activity
 		{
 			// force a disconnection
 			application.getControl().getManager().disconnect();
+			
+			// go back to the peer selection activity
+			finish();
 		}
 
 	}
