@@ -113,7 +113,7 @@ public class MainActivity extends Activity
 		// explode the view layout
 		LayoutInflater vi = (LayoutInflater) getApplicationContext()
 		        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-		
+
 		for (Map.Entry<Integer, Level> entry : application.getControl()
 		        .getLevels().entrySet())
 		{
@@ -139,9 +139,8 @@ public class MainActivity extends Activity
 			ViewGroup viewGroup = (ViewGroup) vi.inflate(layoutId, null);
 			// add to the layout
 			this.layout.addView(viewGroup, entry.getKey() - 1);
-			// find the audio view
-			AudioLevelView view = (AudioLevelView) viewGroup
-			        .findViewById(R.id.audio_view);
+			// find the display view
+			View view = viewGroup.findViewById(R.id.audio_view);
 			// add a listener
 			view.setOnClickListener(new LevelViewClickListener());
 		}
@@ -235,7 +234,8 @@ public class MainActivity extends Activity
 			AlertDialog.Builder builder = new AlertDialog.Builder(
 			        MainActivity.this);
 			LayoutInflater inflater = getLayoutInflater();
-			ViewGroup layout = (ViewGroup)inflater.inflate(R.layout.levelselection, null); 
+			ViewGroup layout = (ViewGroup) inflater.inflate(
+			        R.layout.levelselection, null);
 			builder.setView(layout);
 			builder.setPositiveButton(getString(android.R.string.ok),
 			        new LevelRadioClickListener(layout, index));
@@ -261,7 +261,8 @@ public class MainActivity extends Activity
 		public void onClick(DialogInterface dialog, int ignore)
 		{
 			// fetch the radio group
-			RadioGroup group = (RadioGroup) layout.findViewById(R.id.radiogroup_level);
+			RadioGroup group = (RadioGroup) layout
+			        .findViewById(R.id.radiogroup_level);
 
 			// get the selected button
 			int id = group.getCheckedRadioButtonId();

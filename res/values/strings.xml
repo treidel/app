@@ -5,4 +5,7 @@
     <string name="peerselection_invalid_dialog_message">The device you selected is not compatible with Leveling Glass</string>
     <string name="peerselection_nonefound_dialog_message">No peered devices!</string>
     <string name="waitingforconnection_cancel">Cancel</string>
+    <string name="levelselection_none">None</string>
+    <string name="levelselection_peak">Peak</string>
+    <string name="levelselection_vu">VU</string>
 </resources>
