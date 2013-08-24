@@ -91,6 +91,13 @@ public class StateMachine<S extends Enum<S>, E extends Enum<E>, O, D>
 			        + state + " event=" + event);
 		}
 		Handler<S, O, D> handler = subHandlers.get(event);
+		if (null == handler)
+		{
+			Log.e(TAG, "handler not found for state=" + state + " event="
+			        + event);
+			throw new IllegalStateException("handler not found for state="
+			        + state + " event=" + event);			
+		}
 		return handler;
 	}
 
@@ -130,10 +137,6 @@ public class StateMachine<S extends Enum<S>, E extends Enum<E>, O, D>
 		{
 			Log.d(TAG, "evaluate event=" + event + " data=" + data);
 			Handler<S, O, D> handler = findHandler(getState(), event);
-			if (null == handler) 
-			{
-				Log.e(TAG,  "unhandled event=" + event + " state=" + getState());
-			}
 			S nextState = handler.handleEvent(getObject(), data);
 			if ((null != nextState) && (false == nextState.equals(this.state)))
 			{

@@ -6,9 +6,14 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
+import android.os.ParcelUuid;
+import android.os.Parcelable;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -63,13 +68,13 @@ public class PeerSelectionActivity extends Activity
 
 		// fetch the application
 		this.application = (LevelingGlassApplication) getApplication();
-		
+
 		// setup the layout
 		setContentView(R.layout.peerselection);
 
 		// create the adapter
 		this.adapter = new ArrayAdapter<BluetoothDevice>(this,
-				android.R.layout.simple_list_item_1);
+		        android.R.layout.simple_list_item_1);
 
 		// find the listview
 		ListView listView = (ListView) findViewById(R.id.peers_listview);
@@ -97,7 +102,7 @@ public class PeerSelectionActivity extends Activity
 			startWaitForConnectionActivity(device);
 			return;
 		}
-		
+
 		// load the list of devices
 		loadDevices();
 	}
@@ -158,6 +163,22 @@ public class PeerSelectionActivity extends Activity
 		startActivity(intent);
 	}
 
+	private void notifyDeviceNotCompatible()
+	{
+		// if we get here the device is not compatible so let them know
+		AlertDialog.Builder invalidBuilder = new AlertDialog.Builder(
+		        PeerSelectionActivity.this);
+		invalidBuilder.setMessage(getResources().getString(
+		        R.string.peerselection_invalid_dialog_message));
+		invalidBuilder.setPositiveButton(android.R.string.ok,
+		        new NotCompatibleOkClickListener());
+		invalidBuilder.setCancelable(true);
+		// create + run the dialog
+		final AlertDialog invalidDialog = invalidBuilder.create();
+		invalidDialog.show();
+
+	}
+
 	// /////////////////////////////////////////////////////////////////////////
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
@@ -180,37 +201,90 @@ public class PeerSelectionActivity extends Activity
 			        R.string.peerselection_checking_dialog_message));
 			checkingBuilder.setCancelable(true);
 
-			// create + run the dialog
+			// create the dialog
 			final AlertDialog checkingDialog = checkingBuilder.create();
-			checkingDialog.show();
 
-			// check the device
-			boolean compatible = SPPManager.checkDeviceForCompatibility(device);
+			// unfortunately the "best" place to handle the bluetooth SDP
+			// request for the remote's UUIDs is here
+			final IntentReceiver receiver = new IntentReceiver(checkingDialog);
+			final IntentFilter filter = new IntentFilter();
+			filter.addAction(BluetoothDevice.ACTION_UUID);
+			registerReceiver(receiver, filter);
+			checkingDialog.setOnCancelListener(new CancelCompatibilityListener(
+			        receiver));
 
-			// close the dialog
-			checkingDialog.cancel();
-
-			// do stuff if the peer is not compatible
-			if (false == compatible)
+			// start the SDP query
+			if (false == device.fetchUuidsWithSdp())
 			{
-				// device is not compatible so let them know
-				AlertDialog.Builder invalidBuilder = new AlertDialog.Builder(
-				        PeerSelectionActivity.this);
-				invalidBuilder.setMessage(getResources().getString(
-				        R.string.peerselection_invalid_dialog_message));
-				invalidBuilder.setPositiveButton(android.R.string.ok,
-				        new NotCompatibleOkClickListener());
-				invalidBuilder.setCancelable(true);
-				// create + run the dialog
-				final AlertDialog invalidDialog = invalidBuilder.create();
-				invalidDialog.show();
-				return;
-
+				notifyDeviceNotCompatible();
 			}
-			// start the connection activity
-			startWaitForConnectionActivity(device);
+			else
+			{
+				// show the dialog
+				checkingDialog.show();
+			}
+		}
+	}
+
+	private class IntentReceiver extends BroadcastReceiver
+	{
+		private final AlertDialog dialog;
+
+		public IntentReceiver(AlertDialog dialog)
+		{
+			this.dialog = dialog;
 		}
 
+		@Override
+		public void onReceive(Context context, Intent intent)
+		{
+			String action = intent.getAction();
+			// Evaluate service discovery result
+			if (BluetoothDevice.ACTION_UUID.equals(action))
+			{
+				// deregister ourselves
+				unregisterReceiver(this);
+				// close the dialog
+				dialog.dismiss();
+				// extract the data from the intent
+				Bundle bundle = intent.getExtras();
+				Parcelable[] uuids = bundle
+				        .getParcelableArray(BluetoothDevice.EXTRA_UUID);
+				BluetoothDevice device = bundle
+				        .getParcelable(BluetoothDevice.EXTRA_DEVICE);
+				for (int i = 0; i != uuids.length; ++i)
+				{
+					ParcelUuid uuid = (ParcelUuid) uuids[i];
+					if (true == uuid.getUuid().equals(SPPManager.SERVER_UUID))
+					{
+						// start the connection activity
+						startWaitForConnectionActivity(device);
+						return;
+					}
+				}
+				// if we get here the device is not compatible so let them know
+				notifyDeviceNotCompatible();
+			}
+		}
+	};
+
+	private class CancelCompatibilityListener implements
+	        DialogInterface.OnCancelListener
+	{
+		private final BroadcastReceiver receiver;
+
+		public CancelCompatibilityListener(BroadcastReceiver receiver)
+		{
+			this.receiver = receiver;
+		}
+
+		@Override
+		public void onCancel(DialogInterface dialog)
+		{
+			Log.d(TAG, "cancel clicked");
+			// deregister the receiver
+			unregisterReceiver(receiver);
+		}
 	}
 
 	private class NotCompatibleOkClickListener implements
@@ -235,7 +309,7 @@ public class PeerSelectionActivity extends Activity
 		{
 			Log.d(TAG, "ok clicked");
 			// disable the dialog
-			dialog.cancel();
+			dialog.dismiss();
 			// pop up the pairing screen
 			Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
 			startActivityForResult(intent, REQUEST_PAIR_DEVICE);

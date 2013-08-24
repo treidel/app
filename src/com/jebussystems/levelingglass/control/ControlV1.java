@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -128,6 +127,20 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	public void updateLevel(int index, Level level)
+	{
+		Log.d(TAG, "updateLevel enter");
+
+		// store the new setting
+		this.channelToLevelMapping.put(index, level);
+
+		// trigger the state machine
+		LevelChangeMessage message = new LevelChangeMessage();
+		this.executor.execute(message);
+
+		Log.d(TAG, "setLevel exit");
+	}
+
 	public void updateLevels(Map<Integer, Level> levels)
 	{
 		Log.d(TAG, "updateLevels enter");
@@ -163,16 +176,16 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		return manager;
 	}
 
-	public Set<Integer> getChannels()
+	public Map<Integer, Level> getLevels()
 	{
-		return channelToLevelMapping.keySet();
+		return channelToLevelMapping;
 	}
 
 	public Map<Integer, LevelDataRecord> getLevelDataRecord()
 	{
 		return levelDataRecords;
 	}
-	
+
 	public State getState()
 	{
 		return this.stateMachineInstance.getState();
@@ -485,8 +498,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					// store the channel
 					object.channelToLevelMapping.put(channel, Level.NONE);
 				}
+				else
+				{
+					object.sendLevelRequest(channel, object.channelToLevelMapping.get(channel));
+				}
 			}
-
+			
 			// now connected
 			return State.CONNECTED;
 		}

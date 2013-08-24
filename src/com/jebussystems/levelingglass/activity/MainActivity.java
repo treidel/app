@@ -3,16 +3,20 @@ package com.jebussystems.levelingglass.activity;
 import java.util.Map;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RadioGroup;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.ControlV1;
+import com.jebussystems.levelingglass.control.Level;
 import com.jebussystems.levelingglass.control.LevelDataRecord;
 import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
@@ -103,19 +107,43 @@ public class MainActivity extends Activity
 
 	private void populateLevelViews()
 	{
-		// get the control object and add ourselves as a listener
-		ControlV1 control = application.getControl();
+		// clear all existing views
+		this.layout.removeViews(0, this.layout.getChildCount());
 
-		for (int level : control.getChannels())
+		// explode the view layout
+		LayoutInflater vi = (LayoutInflater) getApplicationContext()
+		        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		
+		for (Map.Entry<Integer, Level> entry : application.getControl()
+		        .getLevels().entrySet())
 		{
-			// explode the view layout
-			LayoutInflater vi = (LayoutInflater) getApplicationContext()
-			        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-			View view = vi.inflate(R.layout.peaklevel, null);
-			// insert into main view
-			layout.addView(view, level - 1, new ViewGroup.LayoutParams(
-			        ViewGroup.LayoutParams.MATCH_PARENT,
-			        ViewGroup.LayoutParams.MATCH_PARENT));
+
+			// this will be populated below
+			int layoutId;
+			switch (entry.getValue())
+			{
+				case NONE:
+					layoutId = R.layout.nolevel;
+					break;
+				case PEAK:
+					layoutId = R.layout.peaklevel;
+					break;
+				case VU:
+					layoutId = R.layout.vulevel;
+					break;
+				default:
+					Log.wtf(TAG, "unknown level type=" + entry.getValue());
+					return;
+			}
+			// inflate the layout for the audio view
+			ViewGroup viewGroup = (ViewGroup) vi.inflate(layoutId, null);
+			// add to the layout
+			this.layout.addView(viewGroup, entry.getKey() - 1);
+			// find the audio view
+			AudioLevelView view = (AudioLevelView) viewGroup
+			        .findViewById(R.id.audio_view);
+			// add a listener
+			view.setOnClickListener(new LevelViewClickListener());
 		}
 	}
 
@@ -164,7 +192,6 @@ public class MainActivity extends Activity
 		@Override
 		public void notifyStateChange(ControlV1.State state)
 		{
-			// if we leave the connected state exit the activity
 			if (false == ControlV1.State.CONNECTED.equals(state))
 			{
 				runOnUiThread(new Runnable()
@@ -196,4 +223,65 @@ public class MainActivity extends Activity
 
 	}
 
+	private class LevelViewClickListener implements View.OnClickListener
+	{
+
+		@Override
+		public void onClick(View view)
+		{
+			// figure out which view was clicked on
+			int index = layout.indexOfChild(view);
+			// pop up the level dialog
+			AlertDialog.Builder builder = new AlertDialog.Builder(
+			        MainActivity.this);
+			LayoutInflater inflater = getLayoutInflater();
+			ViewGroup layout = (ViewGroup)inflater.inflate(R.layout.levelselection, null); 
+			builder.setView(layout);
+			builder.setPositiveButton(getString(android.R.string.ok),
+			        new LevelRadioClickListener(layout, index));
+			AlertDialog dialog = builder.create();
+			dialog.show();
+		}
+
+	}
+
+	private class LevelRadioClickListener implements
+	        DialogInterface.OnClickListener
+	{
+		private final ViewGroup layout;
+		private final int index;
+
+		public LevelRadioClickListener(ViewGroup layout, int index)
+		{
+			this.layout = layout;
+			this.index = index;
+		}
+
+		@Override
+		public void onClick(DialogInterface dialog, int ignore)
+		{
+			// fetch the radio group
+			RadioGroup group = (RadioGroup) layout.findViewById(R.id.radiogroup_level);
+
+			// get the selected button
+			int id = group.getCheckedRadioButtonId();
+			switch (id)
+			{
+				case R.id.radio_levelselection_none:
+					application.getControl().updateLevel(index, Level.NONE);
+					break;
+				case R.id.radio_levelsection_peak:
+					application.getControl().updateLevel(index, Level.PEAK);
+					break;
+				case R.id.radio_levelsection_vu:
+					application.getControl().updateLevel(index, Level.VU);
+					break;
+				default:
+					Log.wtf(TAG, "unknown radio button id=" + id);
+					return;
+			}
+			// force a recreation of all level views
+			populateLevelViews();
+		}
+	}
 }

@@ -25,12 +25,18 @@ public class SPPManager implements SPPConnection.Listener,
 	// constants
 	// /////////////////////////////////////////////////////////////////////////
 	private static final String TAG = "spp.manager";
-	private static final UUID SERVER_UUID = UUID
+
+	public static final UUID SERVER_UUID = UUID
 	        .fromString("c20d3a1a-6c0d-11e2-aa09-000c298ce626");
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
 	// /////////////////////////////////////////////////////////////////////////
+
+	public interface CompatibilityReceiver
+	{
+		void notifyCompatibility(boolean isCompatible);
+	}
 
 	private enum Event
 	{
@@ -110,26 +116,6 @@ public class SPPManager implements SPPConnection.Listener,
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	public static boolean checkDeviceForCompatibility(BluetoothDevice device)
-	{
-		// validate that this is a peer'ed device
-		if (false == BluetoothAdapter.getDefaultAdapter().getBondedDevices()
-		        .contains(device))
-		{
-			Log.w(TAG, "device=" + device.getAddress() + " is not paired");
-			return false;
-		}
-		// make sure the peer supports our service
-		if (false == isUUIDSupportedByDevice(device))
-		{
-			Log.w(TAG,
-			        "SPP service is not supported on device="
-			                + device.getAddress());
-			return false;
-		}
-		return true;
-	}
-	
 	public boolean connect(BluetoothDevice device)
 	{
 		// validate that this is a peer'ed device
@@ -139,8 +125,9 @@ public class SPPManager implements SPPConnection.Listener,
 			Log.w(TAG, "device=" + device.getAddress() + " is not paired");
 			return false;
 		}
+
 		// make sure the peer supports our service
-		if (false == isUUIDSupportedByDevice(device))
+		if (false == checkDeviceForCompatibility(device))
 		{
 			Log.w(TAG,
 			        "SPP service is not supported on device="
@@ -235,7 +222,7 @@ public class SPPManager implements SPPConnection.Listener,
 			}
 		}
 	}
-	
+
 	// /////////////////////////////////////////////////////////////////////////
 	// protected methods
 	// /////////////////////////////////////////////////////////////////////////
@@ -248,25 +235,15 @@ public class SPPManager implements SPPConnection.Listener,
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	private static boolean isUUIDSupportedByDevice(BluetoothDevice device)
+	private boolean checkDeviceForCompatibility(BluetoothDevice device)
 	{
-		// retrieve the UUIds supported by the peer
-		if (false == device.fetchUuidsWithSdp())
+		for (ParcelUuid parcelUUID : device.getUuids())
 		{
-			Log.w(TAG, "unable to retrieve UUIDs");
-			return false;
-		}
-		// see if our UUID is included
-		for (ParcelUuid uuid : device.getUuids())
-		{
-			if (true == uuid.getUuid().equals(SERVER_UUID))
+			if (true == parcelUUID.getUuid().equals(SERVER_UUID))
 			{
 				return true;
 			}
 		}
-
-		// not found
-		Log.w(TAG, "peer does not support the service UUID=" + SERVER_UUID);
 		return false;
 	}
 
@@ -318,8 +295,7 @@ public class SPPManager implements SPPConnection.Listener,
 				return;
 			}
 			// run the state machine
-			stateMachineInstance
-			        .evaluate(Event.NOTIFY_CONNECTED, connection);
+			stateMachineInstance.evaluate(Event.NOTIFY_CONNECTED, connection);
 		}
 	}
 
