@@ -50,23 +50,27 @@ public class LevelingGlassApplication extends Application
 	@Override
 	public void onCreate()
 	{
-		Log.d(TAG, "onCreate");
+		Log.v(TAG, "LevelingGlassApplication::onCreate enter");
+		
 		// create the preferences object
 		this.preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
 		// fetch the stored device
 		String address = preferences.getString(DEVICE_KEY, null);
 		if (null != address)
 		{
+			Log.d(TAG, "found existing bluetooth device=" + address);
 			BluetoothDevice device = BluetoothAdapter.getDefaultAdapter()
 			        .getRemoteDevice(address);
 			// make sure the device is still paired
 			if (BluetoothDevice.BOND_BONDED != device.getBondState())
 			{
 				Log.d(TAG, "device=" + device
-				        + " is not longer paired, ignoring");
+				        + " is no longer paired, ignoring");
 			}
 			else
 			{
+				Log.d(TAG, "existing bluetooth device=" + address
+				        + " still paired");
 				// keep it
 				this.device = device;
 			}
@@ -80,6 +84,9 @@ public class LevelingGlassApplication extends Application
 			StringTokenizer tokenizer = new StringTokenizer(channel, ":");
 			String id = tokenizer.nextToken();
 			String type = tokenizer.nextToken();
+			
+			Log.d(TAG, "found channel=" + id + " type=" + type);
+			
 			// put the level in the lookup
 			this.levels.put(Integer.valueOf(id), Level.valueOf(type));
 		}
@@ -87,6 +94,8 @@ public class LevelingGlassApplication extends Application
 		this.control = new ControlV1();
 		// set channel/level data
 		this.control.updateLevels(this.levels);
+		
+		Log.v(TAG, "LevelingGlassApplication::onCreate exit");
 	}
 
 	public ControlV1 getControl()
@@ -101,12 +110,16 @@ public class LevelingGlassApplication extends Application
 
 	public void setDevice(BluetoothDevice device)
 	{
+		Log.v(TAG, "LevelingGlassApplication::setDevice enter device=" + device);
+		
 		// store the device
 		this.device = device;
 		// save in the preferences
 		SharedPreferences.Editor editor = this.preferences.edit();
 		editor.putString(DEVICE_KEY, device.getAddress());
 		editor.commit();
+		
+		Log.v(TAG, "LevelingGlassApplication::setDevice exit");
 	}
 
 	public Level getLevelForChannel(int channel)
@@ -116,6 +129,8 @@ public class LevelingGlassApplication extends Application
 
 	public void setLevelForChannel(int channel, Level level)
 	{
+		Log.v(TAG, "LevelingGlassApplication::setLevelForChannel enter channel=" + channel + " level=" + level);
+		
 		// store the level
 		this.levels.put(channel, level);
 		// save all levels
@@ -129,6 +144,8 @@ public class LevelingGlassApplication extends Application
 		SharedPreferences.Editor editor = this.preferences.edit();
 		editor.putStringSet(LEVELS_KEY, channels);
 		editor.commit();
+		
+		Log.v(TAG, "LevelingGlassApplication::setLevelForChannel exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////

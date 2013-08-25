@@ -7,6 +7,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 import com.jebussystems.levelingglass.R;
@@ -16,6 +17,8 @@ public class AudioLevelView extends View
 	// /////////////////////////////////////////////////////////////////////////
 	// constants
 	// /////////////////////////////////////////////////////////////////////////
+
+	private static final String TAG = "view.audiolevel";
 
 	private static final int DEFAULT_CEILING_IN_DB = 0;
 	private static final int DEFAULT_FLOOR_IN_DB = -100;
@@ -44,6 +47,10 @@ public class AudioLevelView extends View
 	public AudioLevelView(Context context, AttributeSet attrs)
 	{
 		super(context, attrs);
+
+		Log.v(TAG, "AudioLevelView::AudioLevelView enter context=" + context
+		        + " attrs=" + attrs);
+
 		// initialize our attributes using the info from the attribute set
 		TypedArray a = context.getTheme().obtainStyledAttributes(attrs,
 		        R.styleable.AudioLevel, 0, 0);
@@ -64,6 +71,8 @@ public class AudioLevelView extends View
 		}
 		// set the paint to use
 		this.paint.setColor(this.color);
+
+		Log.v(TAG, "AudioLevelView::AudioLevelView exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -72,6 +81,7 @@ public class AudioLevelView extends View
 
 	public void setColor(int color)
 	{
+		Log.v(TAG, "AudioLevelView::setColor enter color=" + color);
 		if (this.color != color)
 		{
 			// store the colord sr
@@ -80,6 +90,7 @@ public class AudioLevelView extends View
 			// redraw
 			invalidate();
 		}
+		Log.v(TAG, "AudioLevelView::setColor exit");
 	}
 
 	public int getColor()
@@ -89,6 +100,7 @@ public class AudioLevelView extends View
 
 	public void setLevel(int level)
 	{
+		Log.v(TAG, "AudioLevelView::setLevel enter level=" + level);
 		if (this.level != level)
 		{
 			// set the level
@@ -98,6 +110,7 @@ public class AudioLevelView extends View
 			// redraw
 			invalidate();
 		}
+		Log.v(TAG, "AudioLevelView::setLevel exit");
 	}
 
 	public int getLevel()
@@ -107,12 +120,14 @@ public class AudioLevelView extends View
 
 	public void setCeiling(int ceiling)
 	{
+		Log.v(TAG, "AudioLevelView::setCeiling enter ceiling=" + ceiling);
 		// store the ceiling
 		this.ceiling = ceiling;
 		// calculate the drawing size
 		this.rect = calculateDrawingArea(getWidth(), getHeight());
 		// redraw
 		invalidate();
+		Log.v(TAG, "AudioLevelView::setCeiling exit");
 	}
 
 	public int getCeiling()
@@ -122,12 +137,14 @@ public class AudioLevelView extends View
 
 	public void setFloor(int floor)
 	{
+		Log.v(TAG, "AudioLevelView::setFloor enter floor=" + floor);
 		// store the floor
 		this.floor = floor;
 		// calculate the drawing size
 		this.rect = calculateDrawingArea(getWidth(), getHeight());
 		// redraw
 		invalidate();
+		Log.v(TAG, "AudioLevelView::setFloor exit");
 	}
 
 	public int getFloor()
@@ -142,17 +159,23 @@ public class AudioLevelView extends View
 	@Override
 	public void onSizeChanged(int width, int height, int oldwidth, int oldheight)
 	{
+		Log.v(TAG, "AudioLevelView::onSizeChanged enter width=" + width
+		        + " height=" + height + " oldwidth=" + oldwidth + " oldheight="
+		        + oldheight);
 		// calculate the drawing size
 		this.rect = calculateDrawingArea(width, height);
+		Log.v(TAG, "AudioLevelView::onSizeChanged exit");
 	}
 
 	@Override
 	protected void onDraw(Canvas canvas)
 	{
+		Log.v(TAG, "AudioLevelView::onDraw enter canvas=" + canvas);
 		// call the super class
 		super.onDraw(canvas);
 		// giv'er
 		canvas.drawRect(this.rect, this.paint);
+		Log.v(TAG, "AudioLevelView::onDraw exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -177,8 +200,7 @@ public class AudioLevelView extends View
 		float hh = (float) height - ypad;
 
 		// calculate the percent of pixels to draw
-		float percent = 1.0f - ((float) getLevel()
-		        / ((float) getCeiling() + (float) getFloor()));
+		float percent = 1.0f - ((float) getLevel() / ((float) getCeiling() + (float) getFloor()));
 		// handle corners
 		if (level > getCeiling())
 		{

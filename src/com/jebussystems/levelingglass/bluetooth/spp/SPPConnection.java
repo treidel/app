@@ -48,6 +48,8 @@ public class SPPConnection
 	public SPPConnection(Listener listener, BluetoothSocket socket,
 	        SPPMessageHandler messageHandler) 
 	{
+		Log.v(TAG, "SPPConnection::SPPConnection enter listener=" + listener + " socket=" + socket + " messagHandler=" + messageHandler);
+		
 		// store data and allocate the channels
 		this.listener = listener;
 		this.socket = socket;
@@ -66,6 +68,8 @@ public class SPPConnection
 		// spawn a thread to do the connection and read from the channel
 		this.thread = new Thread(new ReadThread());
 		this.thread.start();
+		
+		Log.v(TAG, "SPPConnection::SPPConnection exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -74,16 +78,21 @@ public class SPPConnection
 
 	public void sendRequest(ByteBuffer request) throws IOException
 	{
+		Log.v(TAG, "SPPConnection::sendRequest enter request=" + request);
+		
 		// write the size of the request
 		this.writeStream.writeShort(request.capacity());
 		// write the request
 		this.writeStream.write(request.array());
 		// flush
 		this.writeStream.flush();
+		
+		Log.v(TAG, "SPPConnection::sendRequest exit");
 	}
 
 	public void close()
 	{
+		Log.v(TAG, "SPPConnection::sendRequest enter close");
 		// close the socket
 		try
 		{
@@ -102,6 +111,7 @@ public class SPPConnection
 		{
 			Log.d(TAG, "thread interrupted in join, message=" + e.getMessage());
 		}
+		Log.v(TAG, "SPPConnection::close enter close");
 	}
 	
 	public BluetoothDevice getDevice()
@@ -121,10 +131,14 @@ public class SPPConnection
 	{
 		public void run()
 		{
+			Log.v(TAG, "SPPConnection::ReadThread::run enter");
+			
 			try
 			{
 				// actually try to connect
 				socket.connect();
+				
+				Log.d(TAG, "connected to device=" + socket.getRemoteDevice());
 				
 				// notify the listener
 				listener.connected(SPPConnection.this);
@@ -150,8 +164,8 @@ public class SPPConnection
 				// thread
 				listener.disconnected(SPPConnection.this);
 			}
+			Log.v(TAG, "SPPConnection::ReadThread::run exit");
 		}
-
 	}
 
 }

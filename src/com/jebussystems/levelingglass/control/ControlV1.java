@@ -41,7 +41,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	private enum Event
 	{
+
 		CONNECTED, DISCONNECTED, QUERY_CHANNELS_RESPONSE, LEVEL_CHANGE
+
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -56,8 +58,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	private static final EnumMapper<Level, V1.LevelType> levelMapper = new EnumMapper<Level, V1.LevelType>(
 	        Level.class, V1.LevelType.class);
-	private static final StateMachine<State, Event, ControlV1, Object> stateMachine = new StateMachine<State, Event, ControlV1, Object>(
-	        State.CONNECTING);
+	private static final StateMachine<State, Event, ControlV1> stateMachine = new StateMachine<State, Event, ControlV1>(
+	        Event.class, State.CONNECTING);
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -68,7 +70,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private final SPPManager manager;
 	private final Collection<EventListener> listeners = new LinkedList<EventListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
-	private StateMachine<State, Event, ControlV1, Object>.Instance stateMachineInstance = stateMachine
+	private StateMachine<State, Event, ControlV1>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
 	private Map<Integer, Level> channelToLevelMapping = null;
 	private Map<Integer, LevelDataRecord> levelDataRecords = null;
@@ -96,12 +98,13 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		        new QueryChannelsResponseHandler());
 		stateMachine.addHandler(State.SYNCHRONIZING, Event.DISCONNECTED,
 		        new DisconnectHandler());
+		stateMachine.addHandler(State.SYNCHRONIZING, Event.LEVEL_CHANGE,
+		        stateMachine.createDoNothingHandler());
 		stateMachine.addHandler(State.CONNECTED, Event.DISCONNECTED,
 		        new DisconnectHandler());
 		stateMachine.addHandler(State.CONNECTED, Event.LEVEL_CHANGE,
 		        new ChangeLevelInConnectedHandler());
-		stateMachine.addHandler(State.SYNCHRONIZING, Event.LEVEL_CHANGE,
-		        stateMachine.createDoNothingHandler());
+
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -118,7 +121,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		this.manager.addSPPStateListener(this);
 
 		// setup the state machine state change listener
-		this.stateMachineInstance.addListener(new StateMachineListener());
+		this.stateMachineInstance.setListener(new StateMachineListener());
 
 		Log.d(TAG, "ControlV1 exit");
 	}
@@ -470,7 +473,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	}
 
 	private static class ConnectHandler implements
-	        StateMachine.Handler<State, ControlV1, Object>
+	        StateMachine.Handler<State, ControlV1>
 	{
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
@@ -484,7 +487,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	}
 
 	private static class QueryChannelsResponseHandler implements
-	        StateMachine.Handler<State, ControlV1, Object>
+	        StateMachine.Handler<State, ControlV1>
 	{
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
@@ -500,17 +503,18 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 				}
 				else
 				{
-					object.sendLevelRequest(channel, object.channelToLevelMapping.get(channel));
+					object.sendLevelRequest(channel,
+					        object.channelToLevelMapping.get(channel));
 				}
 			}
-			
+
 			// now connected
 			return State.CONNECTED;
 		}
 	}
 
 	private static class DisconnectHandler implements
-	        StateMachine.Handler<State, ControlV1, Object>
+	        StateMachine.Handler<State, ControlV1>
 	{
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
@@ -523,7 +527,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	}
 
 	private static class ChangeLevelInConnectedHandler implements
-	        StateMachine.Handler<State, ControlV1, Object>
+	        StateMachine.Handler<State, ControlV1>
 	{
 		@Override
 		public State handleEvent(ControlV1 object, Object data)

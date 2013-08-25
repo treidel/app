@@ -57,9 +57,10 @@ public class MainActivity extends Activity
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		super.onCreate(savedInstanceState);
+		Log.v(TAG, "MainActivity::onCreate enter savedInstanceState="
+		        + savedInstanceState);
 
-		Log.i(TAG, "onCreate");
+		super.onCreate(savedInstanceState);
 
 		// fetch the application
 		this.application = (LevelingGlassApplication) getApplication();
@@ -69,15 +70,18 @@ public class MainActivity extends Activity
 
 		// find the layout
 		this.layout = (ViewGroup) findViewById(R.id.main_layout);
+
+		Log.v(TAG, "MainActivity::onCreate exit");
+
 	}
 
 	@Override
 	protected void onStart()
 	{
+		Log.v(TAG, "MainActivity::onStart enter");
+
 		// call the base class
 		super.onStart();
-
-		Log.i(TAG, "onStart");
 
 		// get the control object and add ourselves as a listener
 		ControlV1 control = application.getControl();
@@ -88,17 +92,21 @@ public class MainActivity extends Activity
 
 		// try the populate the level views
 		updateLevelData();
+
+		Log.v(TAG, "MainActivity::onStart exit");
 	}
 
 	@Override
 	protected void onStop()
 	{
-		super.onStop();
+		Log.v(TAG, "MainActivity::onStop enter");
 
-		Log.i(TAG, "onStop");
+		super.onStop();
 
 		// get the control object and add ourselves as a listener
 		application.getControl().removeListener(listener);
+
+		Log.v(TAG, "MainActivity::onStop exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -191,6 +199,9 @@ public class MainActivity extends Activity
 		@Override
 		public void notifyStateChange(ControlV1.State state)
 		{
+			Log.v(TAG,
+			        "MainActivity::ControlEventListener::notifyStateChange enter state="
+			                + state);
 			if (false == ControlV1.State.CONNECTED.equals(state))
 			{
 				runOnUiThread(new Runnable()
@@ -198,26 +209,39 @@ public class MainActivity extends Activity
 					@Override
 					public void run()
 					{
+						Log.v(TAG,
+						        "MainActivity::ControlEventListener::notifyStateChange::run enter");
 						finish();
+						Log.v(TAG,
+						        "MainActivity::ControlEventListener::notifyStateChange::run exit");
 					}
 				});
 			}
+			Log.v(TAG,
+			        "MainActivity::ControlEventListener::notifyStateChange exit");
 		}
 
 		@Override
 		public void notifyLevelsUpdated()
 		{
+			Log.v(TAG,
+			        "MainActivity::ControlEventListener::notifyLevelsUpdated enter");
 			runOnUiThread(new Runnable()
 			{
 
 				@Override
 				public void run()
 				{
+					Log.v(TAG,
+					        "MainActivity::ControlEventListener::notifyLevelsUpdated::run enter");
 					// run the common update logic
 					updateLevelData();
+					Log.v(TAG,
+					        "MainActivity::ControlEventListener::notifyLevelsUpdated::run exit");
 				}
 			});
-
+			Log.v(TAG,
+			        "MainActivity::ControlEventListener::notifyLevelsUpdated exit");
 		}
 
 	}
@@ -228,6 +252,10 @@ public class MainActivity extends Activity
 		@Override
 		public void onClick(View view)
 		{
+			Log.v(TAG,
+			        "MainActivity::LevelViewClickListener::onClick::run enter view="
+			                + view);
+
 			// figure out which view was clicked on
 			int index = layout.indexOfChild(view);
 			// pop up the level dialog
@@ -241,6 +269,9 @@ public class MainActivity extends Activity
 			        new LevelRadioClickListener(layout, index));
 			AlertDialog dialog = builder.create();
 			dialog.show();
+
+			Log.v(TAG,
+			        "MainActivity::LevelViewClickListener::onClick::run exit");
 		}
 
 	}
@@ -260,6 +291,10 @@ public class MainActivity extends Activity
 		@Override
 		public void onClick(DialogInterface dialog, int ignore)
 		{
+			Log.v(TAG,
+			        "MainActivity::LevelRadioClickListener::onClick::run enter dialog="
+			                + dialog + " ignore=" + ignore);
+
 			// fetch the radio group
 			RadioGroup group = (RadioGroup) layout
 			        .findViewById(R.id.radiogroup_level);
@@ -283,6 +318,9 @@ public class MainActivity extends Activity
 			}
 			// force a recreation of all level views
 			populateLevelViews();
+
+			Log.v(TAG,
+			        "MainActivity::LevelRadioClickListener::onClick::run exit");
 		}
 	}
 }
