@@ -113,7 +113,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public ControlV1()
 	{
-		Log.d(TAG, "ControlV1 enter");
+		Log.v(TAG, "ControlV1::ControlV1 enter");
 
 		// create the SPP mananger
 		this.manager = new SPPManager(this);
@@ -123,30 +123,38 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// setup the state machine state change listener
 		this.stateMachineInstance.setListener(new StateMachineListener());
 
-		Log.d(TAG, "ControlV1 exit");
+		Log.v(TAG, "ControlV1::ControlV1 exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	public void updateLevel(int index, Level level)
+	public void updateLevel(int channel, Level level)
 	{
-		Log.d(TAG, "updateLevel enter");
+		Log.v(TAG, "ControlV1::updateLevel enter index=" + channel + " level="
+		        + level);
+
+		// make sure this is a valid channel
+		if (false == this.channelToLevelMapping.containsKey(channel))
+		{
+			Log.wtf(TAG, "invalid channel=" + channel);
+			return;
+		}
 
 		// store the new setting
-		this.channelToLevelMapping.put(index, level);
+		this.channelToLevelMapping.put(channel, level);
 
 		// trigger the state machine
 		LevelChangeMessage message = new LevelChangeMessage();
 		this.executor.execute(message);
 
-		Log.d(TAG, "setLevel exit");
+		Log.v(TAG, "ControlV1::updateLevel exit");
 	}
 
 	public void updateLevels(Map<Integer, Level> levels)
 	{
-		Log.d(TAG, "updateLevels enter");
+		Log.v(TAG, "ControlV1::updateLevels enter levels=" + levels);
 
 		// store the new settings
 		this.channelToLevelMapping = levels;
@@ -155,23 +163,27 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		LevelChangeMessage message = new LevelChangeMessage();
 		this.executor.execute(message);
 
-		Log.d(TAG, "setLevel exit");
+		Log.v(TAG, "ControlV1::updateLevels exit");
 	}
 
 	public void addListener(EventListener listener)
 	{
+		Log.v(TAG, "ControlV1::addListener enter listener=" + listener);
 		synchronized (this.listeners)
 		{
 			this.listeners.add(listener);
 		}
+		Log.v(TAG, "ControlV1::addListener exit");
 	}
 
 	public void removeListener(EventListener listener)
 	{
+		Log.v(TAG, "ControlV1::removeListener enter listener=" + listener);
 		synchronized (this.listeners)
 		{
 			this.listeners.remove(listener);
 		}
+		Log.v(TAG, "ControlV1::removeListener exit");
 	}
 
 	public SPPManager getManager()
@@ -200,13 +212,13 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public void notifySPPStateChanged(SPPState state)
 	{
-		Log.d(TAG, "notifySPPStateChanged enter state=" + state.toString());
+		Log.v(TAG, "ControlV1::notifySPPStateChanged enter state=" + state);
 
 		// send ourselves a message to handle this
 		SPPStateMessage message = new SPPStateMessage(state);
 		this.executor.execute(message);
 
-		Log.d(TAG, "notifySPPStateChanged exit");
+		Log.v(TAG, "ControlV1::notifySPPStateChanged exit");
 
 	}
 
@@ -216,7 +228,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public void handleSPPMessage(ByteBuffer message)
 	{
-		Log.d(TAG, "handleSPPMessage enter message=" + message.toString());
+		Log.v(TAG, "ControlV1::handleSPPMessage enter message=" + message);
 
 		try
 		{
@@ -241,7 +253,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		{
 			Log.e(TAG, "unable to decode message, reason=" + e.getMessage());
 		}
-		Log.d(TAG, "handleSPPMessage exit");
+		Log.v(TAG, "ControlV1::handleSPPMessage exit");
 	}
 
 	// ////////////////////////////////////////////////////////////////////////
@@ -250,8 +262,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	private void sendLevelRequest(int channel, Level level)
 	{
-		Log.d(TAG, "sendLevelRequest enter channel=" + channel + " level="
-		        + level);
+		Log.v(TAG, "ControlV1::sendLevelRequest enter channel=" + channel
+		        + " level=" + level);
 
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
@@ -265,12 +277,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// send the message
 		sendRequest(requestBuilder.build());
 
-		Log.d(TAG, "sendLevelRequest exit");
+		Log.v(TAG, "ControlV1::sendLevelRequest exit");
 	}
 
 	private void sendQueryChannelRequest()
 	{
-		Log.d(TAG, "sendQueryChannelRequest enter");
+		Log.v(TAG, "ControlV1::sendQueryChannelRequest enter");
 
 		// build the message to set the level
 		V1.QueryAudioChannelsRequest.Builder queryChannelRequestBuilder = V1.QueryAudioChannelsRequest
@@ -282,12 +294,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// send the message
 		sendRequest(requestBuilder.build());
 
-		Log.d(TAG, "sendQueryChannelRequest exit");
+		Log.v(TAG, "ControlV1::sendQueryChannelRequest exit");
 	}
 
 	private void sendRequest(V1.Request request)
 	{
-		Log.d(TAG, "sendRequest request=" + request.toString());
+		Log.v(TAG, "ControlV1::sendRequest request=" + request.toString());
 		// add the request to the bottom of the pending list
 		this.pendingRequestQueue.add(request);
 		// calculate how large the request is in bytes
@@ -300,13 +312,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// off she goes
 		this.manager.sendRequest(buffer);
 
-		Log.d(TAG, "sendRequest exit");
+		Log.v(TAG, "ControlV1::sendRequest exit");
 
 	}
 
 	private void handleResponse(V1.Response response)
 	{
-		Log.d(TAG, "handleResponse enter response=" + response.toString());
+		Log.v(TAG,
+		        "ControlV1::handleResponse enter response="
+		                + response.toString());
 
 		// if there are no pending request we have a problem
 		if (true == this.pendingRequestQueue.isEmpty())
@@ -353,18 +367,18 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					break;
 
 				default:
-					Log.e(TAG, "unknown type: " + response.getType().toString());
+					Log.wtf(TAG, "unknown type: "
+					        + response.getType().toString());
 					return;
 			}
 		}
-		Log.d(TAG, "handleResponse exit");
+		Log.v(TAG, "ControlV1::handleResponse exit");
 	}
 
 	private void handleNotification(V1.Notification notification)
 	{
-		Log.d(TAG,
-		        "handleNotification enter notification="
-		                + notification.toString());
+		Log.v(TAG, "ControlV1::handleNotification enter notification="
+		        + notification.toString());
 		switch (notification.getType())
 		{
 			case LEVEL:
@@ -399,10 +413,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 				}
 				break;
 			default:
-				Log.e(TAG, "unknown type: " + notification.getType().toString());
+				Log.wtf(TAG, "unknown type: "
+				        + notification.getType().toString());
 				return;
 		}
-		Log.d(TAG, "handleNotification exit");
+		Log.v(TAG, "ControlV1::handleNotification exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -416,6 +431,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public void notifyStateChange(State state)
 		{
+			Log.v(TAG,
+			        "ControlV1::StateMachineListener::notifyStateChange enter state="
+			                + state);
 			synchronized (listeners)
 			{
 				for (EventListener listener : listeners)
@@ -423,6 +441,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					listener.notifyStateChange(state);
 				}
 			}
+			Log.v(TAG,
+			        "ControlV1::StateMachineListener::notifyStateChange exit");
 		}
 	}
 
@@ -431,8 +451,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public void run()
 		{
-			Log.d(TAG, "run");
+			Log.v(TAG, "ControlV1::LevelChangeMessage::run enter");
 			stateMachineInstance.evaluate(Event.LEVEL_CHANGE, null);
+			Log.v(TAG, "ControlV1::LevelChangeMessage::run exit");
 		}
 	}
 
@@ -448,8 +469,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public void run()
 		{
-
-			Log.d(TAG, "run state=" + this.state);
+			Log.v(TAG, "ControlV1::SPPStateMessage::run enter state=" + state);
 
 			switch (this.state)
 			{
@@ -469,6 +489,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					Log.wtf(TAG, "state=" + this.state);
 					return;
 			}
+			Log.v(TAG, "ControlV1::SPPStateMessage::run exit");
 		}
 	}
 
@@ -478,11 +499,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
+			Log.v(TAG, "ControlV1::ConnectHandler::handleEvent enter object="
+			        + object + " data=" + data);
 			// send the request for the list of channels
 			object.sendQueryChannelRequest();
 
 			// now synchronizing
+			Log.v(TAG, "ControlV1::ConnectHandler::handleEvent exit");
 			return State.SYNCHRONIZING;
+
 		}
 	}
 
@@ -492,12 +517,17 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
+			Log.v(TAG,
+			        "ControlV1::QueryChannelsResponseHandler::handleEvent enter object="
+			                + object + " data=" + data);
 			V1.QueryAudioChannelsResponse response = (V1.QueryAudioChannelsResponse) data;
 			for (int channel : response.getChannelsList())
 			{
 				// if we don't know about this channel populate
 				if (false == object.channelToLevelMapping.containsKey(channel))
 				{
+					Log.d(TAG, "unknown channel=" + channel
+					        + ", setting to NONE");
 					// store the channel
 					object.channelToLevelMapping.put(channel, Level.NONE);
 				}
@@ -509,6 +539,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			}
 
 			// now connected
+			Log.v(TAG,
+			        "ControlV1::QueryChannelsResponseHandler::handleEvent exit");
 			return State.CONNECTED;
 		}
 	}
@@ -519,9 +551,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
+			Log.v(TAG,
+			        "ControlV1::DisconnectHandler::handleEvent enter object="
+			                + object + " data=" + data);
 			// clear any level data we may have
 			object.levelDataRecords = null;
-			// now connected
+			// clear any pending messages
+			object.pendingRequestQueue.clear();
+			// now connecting
+			Log.v(TAG, "ControlV1::DisconnectHandler::handleEvent exit");
 			return State.CONNECTING;
 		}
 	}
@@ -532,6 +570,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		@Override
 		public State handleEvent(ControlV1 object, Object data)
 		{
+			Log.v(TAG,
+			        "ControlV1::ChangeLevelInConnectedHandler::handleEvent enter object="
+			                + object + " data=" + data);
 			for (Map.Entry<Integer, Level> entry : object.channelToLevelMapping
 			        .entrySet())
 			{
@@ -539,6 +580,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 				object.sendLevelRequest(entry.getKey(), entry.getValue());
 			}
 			// no change in state
+			Log.v(TAG,
+			        "ControlV1::ChangeLevelInConnectedHandler::handleEvent exit");
 			return null;
 		}
 	}

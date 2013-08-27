@@ -14,7 +14,7 @@
         android:padding="2dp"
         custom:level_in_db="-20"
         custom:ceiling_in_db="0"
-        custom:floor_in_db="-50"
+        custom:floor_in_db="-25"
         custom:color="@android:color/holo_green_light" />
 
 </LinearLayout>

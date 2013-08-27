@@ -4,15 +4,15 @@ package com.jebussystems.levelingglass.control;
 public class PeakLevelDataRecord extends LevelDataRecord
 {
 
-	private final int peakLevelInDB;
+	private final float peakLevelInDB;
 
-	public PeakLevelDataRecord(int channel, int peakLevelInDB)
+	public PeakLevelDataRecord(int channel, float peakLevelInDB)
 	{
 		super(channel);
 		this.peakLevelInDB = peakLevelInDB;
 	}
 
-	public int getPeakLevelInDB()
+	public float getPeakLevelInDB()
 	{
 		return peakLevelInDB;
 	}

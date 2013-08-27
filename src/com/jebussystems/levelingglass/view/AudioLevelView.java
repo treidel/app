@@ -35,7 +35,7 @@ public class AudioLevelView extends View
 
 	private int floor;
 	private int ceiling;
-	private int level;
+	private float level;
 	private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private RectF rect;
 	private int color = DEFAULT_COLOR;
@@ -98,7 +98,7 @@ public class AudioLevelView extends View
 		return this.color;
 	}
 
-	public void setLevel(int level)
+	public void setLevel(float level)
 	{
 		Log.v(TAG, "AudioLevelView::setLevel enter level=" + level);
 		if (this.level != level)
@@ -113,7 +113,7 @@ public class AudioLevelView extends View
 		Log.v(TAG, "AudioLevelView::setLevel exit");
 	}
 
-	public int getLevel()
+	public float getLevel()
 	{
 		return level;
 	}

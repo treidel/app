@@ -116,7 +116,7 @@ public class MainActivity extends Activity
 	private void populateLevelViews()
 	{
 		// clear all existing views
-		this.layout.removeViews(0, this.layout.getChildCount());
+		this.layout.removeAllViews();
 
 		// explode the view layout
 		LayoutInflater vi = (LayoutInflater) getApplicationContext()
@@ -145,10 +145,12 @@ public class MainActivity extends Activity
 			}
 			// inflate the layout for the audio view
 			ViewGroup viewGroup = (ViewGroup) vi.inflate(layoutId, null);
-			// add to the layout
-			this.layout.addView(viewGroup, entry.getKey() - 1);
 			// find the display view
 			View view = viewGroup.findViewById(R.id.audio_view);
+			// remove it from the exploded layout
+			viewGroup.removeView(view);
+			// add the display view to the layout
+			this.layout.addView(view, entry.getKey() - 1);
 			// add a listener
 			view.setOnClickListener(new LevelViewClickListener());
 		}
@@ -266,7 +268,7 @@ public class MainActivity extends Activity
 			        R.layout.levelselection, null);
 			builder.setView(layout);
 			builder.setPositiveButton(getString(android.R.string.ok),
-			        new LevelRadioClickListener(layout, index));
+			        new LevelRadioClickListener(layout, index + 1));
 			AlertDialog dialog = builder.create();
 			dialog.show();
 
@@ -280,12 +282,12 @@ public class MainActivity extends Activity
 	        DialogInterface.OnClickListener
 	{
 		private final ViewGroup layout;
-		private final int index;
+		private final int channel;
 
-		public LevelRadioClickListener(ViewGroup layout, int index)
+		public LevelRadioClickListener(ViewGroup layout, int channel)
 		{
 			this.layout = layout;
-			this.index = index;
+			this.channel = channel;
 		}
 
 		@Override
@@ -304,13 +306,13 @@ public class MainActivity extends Activity
 			switch (id)
 			{
 				case R.id.radio_levelselection_none:
-					application.getControl().updateLevel(index, Level.NONE);
+					application.getControl().updateLevel(channel, Level.NONE);
 					break;
 				case R.id.radio_levelsection_peak:
-					application.getControl().updateLevel(index, Level.PEAK);
+					application.getControl().updateLevel(channel, Level.PEAK);
 					break;
 				case R.id.radio_levelsection_vu:
-					application.getControl().updateLevel(index, Level.VU);
+					application.getControl().updateLevel(channel, Level.VU);
 					break;
 				default:
 					Log.wtf(TAG, "unknown radio button id=" + id);

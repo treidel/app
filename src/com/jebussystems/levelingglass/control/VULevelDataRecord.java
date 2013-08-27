@@ -3,15 +3,15 @@ package com.jebussystems.levelingglass.control;
 
 public class VULevelDataRecord extends LevelDataRecord
 {
-	private final int powerLevelInDB;
+	private final float powerLevelInDB;
 
-	public VULevelDataRecord(int channel, int powerLevelInDB)
+	public VULevelDataRecord(int channel, float powerLevelInDB)
 	{
 		super(channel);
 		this.powerLevelInDB = powerLevelInDB;
 	}
 
-	public int getPowerLevelInDB()
+	public float getPowerLevelInDB()
 	{
 		return powerLevelInDB;
 	}

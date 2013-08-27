@@ -189,10 +189,11 @@ public class StateMachine<S extends Enum<S>, E extends Enum<E>, O>
 			// handler is found
 			Handler<S, O> handler = findHandler(getState(), event);
 			S nextState = handler.handleEvent(getObject(), data);
-			Log.d(TAG, "state transition => current state=" + this.state
-			        + " next state=" + nextState);
 			if ((null != nextState) && (false == nextState.equals(this.state)))
 			{
+				Log.d(TAG, "state transition => current state=" + this.state
+				        + " next state=" + nextState);
+
 				// trigger the listener
 				if (null != listener)
 				{
