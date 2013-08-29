@@ -23,7 +23,8 @@ public class AudioLevelView extends View
 	private static final int DEFAULT_CEILING_IN_DB = 0;
 	private static final int DEFAULT_FLOOR_IN_DB = -100;
 	private static final int DEFAULT_LEVEL_IN_DB = DEFAULT_FLOOR_IN_DB;
-	private static final int DEFAULT_COLOR = Color.BLUE;
+	private static final int DEFAULT_NORMAL_COLOR = Color.GREEN;
+	private static final int DEFAULT_PEAK_COLOR = Color.RED;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
@@ -36,9 +37,12 @@ public class AudioLevelView extends View
 	private int floor;
 	private int ceiling;
 	private float level;
-	private Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-	private RectF rect;
-	private int color = DEFAULT_COLOR;
+	private Paint normalPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+	private Paint peakPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+	private RectF normalRect;
+	private RectF peakRect;
+	private final int normalColor;
+	private final int peakColor;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -56,13 +60,15 @@ public class AudioLevelView extends View
 		        R.styleable.AudioLevel, 0, 0);
 		try
 		{
-			this.color = a
-			        .getColor(R.styleable.AudioLevel_color, DEFAULT_COLOR);
-			this.floor = a.getInt(R.styleable.AudioLevel_floor_in_db,
+			this.normalColor = a.getColor(R.styleable.AudioLevel_normal_color,
+			        DEFAULT_NORMAL_COLOR);
+			this.peakColor = a.getColor(R.styleable.AudioLevel_peak_color,
+			        DEFAULT_PEAK_COLOR);
+			this.floor = a.getInt(R.styleable.AudioLevel_floor,
 			        DEFAULT_FLOOR_IN_DB);
-			this.ceiling = a.getInt(R.styleable.AudioLevel_ceiling_in_db,
+			this.ceiling = a.getInt(R.styleable.AudioLevel_ceiling,
 			        DEFAULT_CEILING_IN_DB);
-			this.level = a.getInt(R.styleable.AudioLevel_level_in_db,
+			this.level = a.getInt(R.styleable.AudioLevel_level,
 			        DEFAULT_LEVEL_IN_DB);
 		}
 		finally
@@ -70,7 +76,8 @@ public class AudioLevelView extends View
 			a.recycle();
 		}
 		// set the paint to use
-		this.paint.setColor(this.color);
+		this.normalPaint.setColor(this.normalColor);
+		this.peakPaint.setColor(this.peakColor);
 
 		Log.v(TAG, "AudioLevelView::AudioLevelView exit");
 	}
@@ -78,25 +85,6 @@ public class AudioLevelView extends View
 	// /////////////////////////////////////////////////////////////////////////
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
-
-	public void setColor(int color)
-	{
-		Log.v(TAG, "AudioLevelView::setColor enter color=" + color);
-		if (this.color != color)
-		{
-			// store the colord sr
-			this.color = color;
-
-			// redraw
-			invalidate();
-		}
-		Log.v(TAG, "AudioLevelView::setColor exit");
-	}
-
-	public int getColor()
-	{
-		return this.color;
-	}
 
 	public void setLevel(float level)
 	{
@@ -106,7 +94,7 @@ public class AudioLevelView extends View
 			// set the level
 			this.level = level;
 			// calculate the drawing size
-			this.rect = calculateDrawingArea(getWidth(), getHeight());
+			calculateDrawingArea(getWidth(), getHeight());
 			// redraw
 			invalidate();
 		}
@@ -124,7 +112,7 @@ public class AudioLevelView extends View
 		// store the ceiling
 		this.ceiling = ceiling;
 		// calculate the drawing size
-		this.rect = calculateDrawingArea(getWidth(), getHeight());
+		calculateDrawingArea(getWidth(), getHeight());
 		// redraw
 		invalidate();
 		Log.v(TAG, "AudioLevelView::setCeiling exit");
@@ -141,7 +129,7 @@ public class AudioLevelView extends View
 		// store the floor
 		this.floor = floor;
 		// calculate the drawing size
-		this.rect = calculateDrawingArea(getWidth(), getHeight());
+		calculateDrawingArea(getWidth(), getHeight());
 		// redraw
 		invalidate();
 		Log.v(TAG, "AudioLevelView::setFloor exit");
@@ -163,7 +151,7 @@ public class AudioLevelView extends View
 		        + " height=" + height + " oldwidth=" + oldwidth + " oldheight="
 		        + oldheight);
 		// calculate the drawing size
-		this.rect = calculateDrawingArea(width, height);
+		calculateDrawingArea(width, height);
 		Log.v(TAG, "AudioLevelView::onSizeChanged exit");
 	}
 
@@ -174,7 +162,11 @@ public class AudioLevelView extends View
 		// call the super class
 		super.onDraw(canvas);
 		// giv'er
-		canvas.drawRect(this.rect, this.paint);
+		canvas.drawRect(this.normalRect, this.normalPaint);
+		if (null != this.peakRect)
+		{
+			canvas.drawRect(this.peakRect, this.peakPaint);
+		}
 		Log.v(TAG, "AudioLevelView::onDraw exit");
 	}
 
@@ -190,31 +182,56 @@ public class AudioLevelView extends View
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	private RectF calculateDrawingArea(int width, int height)
+	private void calculateDrawingArea(int width, int height)
 	{
 		// Account for padding
 		float xpad = (float) (getPaddingLeft() + getPaddingRight());
 		float ypad = (float) (getPaddingTop() + getPaddingBottom());
 
+		// account for padding
 		float ww = (float) width - xpad;
 		float hh = (float) height - ypad;
 
-		// calculate the percent of pixels to draw
-		float percent = 1.0f - ((float) getLevel() / ((float) getCeiling() + (float) getFloor()));
-		// handle corners
-		if (level > getCeiling())
-		{
-			percent = 1.0f;
-		}
-		else if (level < getFloor())
-		{
-			percent = 0.0f;
-		}
+		// figure out the number of pixels for each rectangle
+		float ww_normal = Math.round(ww * (-getFloor()) / (getCeiling() - getFloor()));
+		float ww_peak = Math.round(ww * getCeiling() / (getCeiling() - getFloor()));
 
-		// calculate the number of pixels we need to draw
-		float pixels = ww * percent;
+		// see if we're above or below the zero level
+		if (level < 0f)
+		{
+			// no peak rectangle needed
+			this.peakRect = null;
+			// // calculate the percent of pixels to draw
+			float percent = 1.0f - ((float) getLevel() / ((float) getFloor()));
+			// handle clipping
+			if (level < getFloor())
+			{
+				percent = 0.0f;
+			}
+			// calculate the number of pixels we need to draw
+			float pixels = ww_normal * percent;
+			// size the drawing rectangle
+			this.normalRect = new RectF(getPaddingLeft(), getPaddingTop(),
+			        pixels, hh);
+		}
+		else
+		{
+			// normal rectangle is full
+			this.normalRect = new RectF(getPaddingLeft(), getPaddingTop(),
+			        ww_normal, hh);
+			// calculate the percent of pixels to draw
+			float percent = ((float) getLevel() / ((float) getCeiling()));
+			// handle clipping
+			if (level > getCeiling())
+			{
+				percent = 1.0f;
+			}
+			// calculate the number of pixels we need to draw
+			float pixels = ww_peak * percent;
 
-		// size the drawing rectangle
-		return new RectF(getPaddingLeft(), getPaddingTop(), pixels, hh);
+			// size the drawing rectangle
+			this.peakRect = new RectF(ww_normal,
+			        getPaddingTop(), ww_normal + pixels, hh);
+		}
 	}
 }

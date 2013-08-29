@@ -12,9 +12,10 @@
         android:layout_width="match_parent"
         android:layout_height="?android:attr/listPreferredItemHeight"
         android:padding="2dp"
-        custom:level_in_db="-20"
-        custom:ceiling_in_db="0"
-        custom:floor_in_db="-25"
-        custom:color="@android:color/holo_green_light" />
+        custom:ceiling="30"
+        custom:floor="-96"
+        custom:level="0"
+        custom:normal_color="@android:color/holo_green_light"
+        custom:peak_color="@android:color/holo_red_light" />
 
 </LinearLayout>

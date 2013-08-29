@@ -181,7 +181,7 @@ public class MainActivity extends Activity
 					case VU:
 						// set the level
 						audiolevel.setLevel(((VULevelDataRecord) record)
-						        .getPowerLevelInDB());
+						        .getVUInUnits());
 						break;
 					default:
 						Log.wtf(TAG, "unexpected level=" + record.getType());

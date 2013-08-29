@@ -73,7 +73,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private StateMachine<State, Event, ControlV1>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
 	private Map<Integer, Level> channelToLevelMapping = null;
-	private Map<Integer, LevelDataRecord> levelDataRecords = null;
+	private Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// static initialization
@@ -145,6 +145,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// store the new setting
 		this.channelToLevelMapping.put(channel, level);
 
+		// clear the levels
+		this.levelDataRecords.remove(channel);
+
 		// trigger the state machine
 		LevelChangeMessage message = new LevelChangeMessage();
 		this.executor.execute(message);
@@ -158,6 +161,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 		// store the new settings
 		this.channelToLevelMapping = levels;
+
+		// clear all records
+		this.levelDataRecords.clear();
 
 		// trigger the state machine
 		LevelChangeMessage message = new LevelChangeMessage();
@@ -383,10 +389,24 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		{
 			case LEVEL:
 				// store the level data internally
-				this.levelDataRecords = new TreeMap<Integer, LevelDataRecord>();
+				Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();
 				for (v1.V1.LevelRecord record : notification.getLevel()
 				        .getRecordsList())
+
 				{
+					// convert the type into our internal version
+					Level recordLevel = levelMapper.mapToInternal(record
+					        .getType());
+					// get the configured level
+					Level configuredLevel = this.channelToLevelMapping
+					        .get(record.getChannel());
+					// ignore if the type doesn't match
+					if (false == recordLevel.equals(configuredLevel))
+					{
+						Log.d(TAG, "ignoring record, record=" + recordLevel
+						        + " configured=" + configuredLevel);
+						continue;
+					}
 					switch (record.getType())
 					{
 						case PEAK:
@@ -400,10 +420,13 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 						case VU:
 							this.levelDataRecords.put(record.getChannel(),
 							        new VULevelDataRecord(record.getChannel(),
-							                record.getPowerInDB()));
+							                record.getVuInUnits()));
 
 					}
 				}
+				// swap the existing level data with the new data 				
+				this.levelDataRecords = levelDataRecords;
+				// let the listeners know there's new data available
 				synchronized (this.listeners)
 				{
 					for (EventListener listener : listeners)

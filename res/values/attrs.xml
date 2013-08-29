@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <declare-styleable name="AudioLevel">
-        <attr name="color" format="color" />
-        <attr name="level_in_db" format="integer" />
-        <attr name="floor_in_db" format="integer" />
-        <attr name="ceiling_in_db" format="integer" />
+        <attr name="normal_color" format="color" />
+        <attr name="peak_color" format="color" />
+        <attr name="level" format="integer" />
+        <attr name="floor" format="integer" />
+        <attr name="ceiling" format="integer" />
     </declare-styleable>
 </resources>
