@@ -411,14 +411,14 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					{
 						case PEAK:
 							// create + store a peak data record
-							this.levelDataRecords.put(
+							levelDataRecords.put(
 							        record.getChannel(),
 							        new PeakLevelDataRecord(
 							                record.getChannel(), record
 							                        .getPeakInDB()));
 							break;
 						case VU:
-							this.levelDataRecords.put(record.getChannel(),
+							levelDataRecords.put(record.getChannel(),
 							        new VULevelDataRecord(record.getChannel(),
 							                record.getVuInUnits()));
 
