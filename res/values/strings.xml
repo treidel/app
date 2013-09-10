@@ -1,4 +1,5 @@
 <resources>
+
     <string name="app_name">Leveling Glass</string>
     <string name="peerselection_message">Select a Bluetooth Device</string>
     <string name="peerselection_checking_dialog_message">Verifying the device is compatible</string>
@@ -6,6 +7,8 @@
     <string name="peerselection_nonefound_dialog_message">No peered devices!</string>
     <string name="waitingforconnection_cancel">Cancel</string>
     <string name="levelselection_none">None</string>
-    <string name="levelselection_peak">Peak</string>
+    <string name="levelselection_ppm">PPM</string>
+    <string name="levelselection_digitalpeak">Digital Peak</string>
     <string name="levelselection_vu">VU</string>
+
 </resources>

@@ -12,10 +12,16 @@
         android:text="@string/levelselection_none" />
 
     <RadioButton
-        android:id="@+id/radio_levelsection_peak"
+        android:id="@+id/radio_levelsection_digitalpeak"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/levelselection_peak" />
+        android:text="@string/levelselection_digitalpeak" />
+
+    <RadioButton
+        android:id="@+id/radio_levelsection_ppm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/levelselection_ppm" />
 
     <RadioButton
         android:id="@+id/radio_levelsection_vu"

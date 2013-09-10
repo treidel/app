@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:custom="http://schemas.android.com/apk/res/com.jebussystems.levelingglass"
+    android:id="@+id/peaklevel_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="2dp" >
+
+    <com.jebussystems.levelingglass.view.AudioLevelView
+        android:id="@+id/audio_view"
+        android:layout_width="match_parent"
+        android:layout_height="?android:attr/listPreferredItemHeight"
+        android:padding="2dp"
+        custom:ceiling="0"
+        custom:floor="-30"
+        custom:level="0"
+        custom:normal_color="@android:color/holo_orange_light"
+        custom:peak_color="@android:color/holo_red_light" />
+
+</LinearLayout>

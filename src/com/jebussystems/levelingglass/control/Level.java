@@ -3,5 +3,5 @@ package com.jebussystems.levelingglass.control;
 
 public enum Level
 {
-	NONE, VU, PEAK;
+	NONE, VU, DIGITALPEAK, PPM;
 }

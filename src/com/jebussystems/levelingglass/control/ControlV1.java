@@ -83,7 +83,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	{
 		// set the enum mapper
 		levelMapper.addMapping(Level.NONE, V1.LevelType.NONE);
-		levelMapper.addMapping(Level.PEAK, V1.LevelType.PEAK);
+		levelMapper.addMapping(Level.DIGITALPEAK, V1.LevelType.DIGITALPEAK);
+		levelMapper.addMapping(Level.PPM, V1.LevelType.PPM);
 		levelMapper.addMapping(Level.VU, V1.LevelType.VU);
 
 		// setup the state machine
@@ -409,13 +410,19 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					}
 					switch (record.getType())
 					{
-						case PEAK:
+						case PPM:
 							// create + store a peak data record
-							levelDataRecords.put(
-							        record.getChannel(),
-							        new PeakLevelDataRecord(
-							                record.getChannel(), record
-							                        .getPeakInDB()));
+							levelDataRecords.put(record.getChannel(),
+							        new PPMLevelDataRecord(record.getChannel(),
+							                record.getPeakInDB()));
+							break;
+						case DIGITALPEAK:
+							// create + store a peak data record
+							levelDataRecords
+							        .put(record.getChannel(),
+							                new DigitalPeakLevelDataRecord(
+							                        record.getChannel(), record
+							                                .getPeakInDB()));
 							break;
 						case VU:
 							levelDataRecords.put(record.getChannel(),
@@ -424,7 +431,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 					}
 				}
-				// swap the existing level data with the new data 				
+				// swap the existing level data with the new data
 				this.levelDataRecords = levelDataRecords;
 				// let the listeners know there's new data available
 				synchronized (this.listeners)

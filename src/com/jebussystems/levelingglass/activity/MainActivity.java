@@ -18,7 +18,8 @@ import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.ControlV1;
 import com.jebussystems.levelingglass.control.Level;
 import com.jebussystems.levelingglass.control.LevelDataRecord;
-import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
+import com.jebussystems.levelingglass.control.DigitalPeakLevelDataRecord;
+import com.jebussystems.levelingglass.control.PPMLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
@@ -133,8 +134,11 @@ public class MainActivity extends Activity
 				case NONE:
 					layoutId = R.layout.nolevel;
 					break;
-				case PEAK:
-					layoutId = R.layout.peaklevel;
+				case DIGITALPEAK:
+					layoutId = R.layout.digitalpeaklevel;
+					break;
+				case PPM:
+					layoutId = R.layout.ppmlevel;
 					break;
 				case VU:
 					layoutId = R.layout.vulevel;
@@ -173,10 +177,16 @@ public class MainActivity extends Activity
 				        .findViewById(R.id.audio_view);
 				switch (record.getType())
 				{
-					case PEAK:
+					case PPM:
 						// set the level
-						audiolevel.setLevel(((PeakLevelDataRecord) record)
+						audiolevel.setLevel(((PPMLevelDataRecord) record)
 						        .getPeakLevelInDB());
+						break;
+					case DIGITALPEAK:
+						// set the level
+						audiolevel
+						        .setLevel(((DigitalPeakLevelDataRecord) record)
+						                .getPeakLevelInDB());
 						break;
 					case VU:
 						// set the level
@@ -308,8 +318,12 @@ public class MainActivity extends Activity
 				case R.id.radio_levelselection_none:
 					application.getControl().updateLevel(channel, Level.NONE);
 					break;
-				case R.id.radio_levelsection_peak:
-					application.getControl().updateLevel(channel, Level.PEAK);
+				case R.id.radio_levelsection_digitalpeak:
+					application.getControl().updateLevel(channel,
+					        Level.DIGITALPEAK);
+					break;
+				case R.id.radio_levelsection_ppm:
+					application.getControl().updateLevel(channel, Level.PPM);
 					break;
 				case R.id.radio_levelsection_vu:
 					application.getControl().updateLevel(channel, Level.VU);
