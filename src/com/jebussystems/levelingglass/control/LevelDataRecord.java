@@ -15,6 +15,6 @@ public abstract class LevelDataRecord
 		return channel;
 	}
 
-	public abstract Level getType();
+	public abstract MeterType getType();
 
 }

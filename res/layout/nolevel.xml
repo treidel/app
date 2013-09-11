@@ -10,8 +10,9 @@
         android:id="@+id/audio_view"
         android:layout_width="match_parent"
         android:layout_height="?android:attr/listPreferredItemHeight"
-        android:background="@android:color/background_light"
-        android:text="TEST"
+        android:background="@android:color/darker_gray"
+        android:gravity="center"
+        android:text="@string/nolevel_clickhere"
         android:textAppearance="?android:attr/textAppearanceLarge" />
 
 </LinearLayout>

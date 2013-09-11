@@ -43,7 +43,6 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	{
 
 		CONNECTED, DISCONNECTED, QUERY_CHANNELS_RESPONSE, LEVEL_CHANGE
-
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -56,8 +55,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private static final EnumMapper<Level, V1.LevelType> levelMapper = new EnumMapper<Level, V1.LevelType>(
-	        Level.class, V1.LevelType.class);
+	private static final EnumMapper<MeterType, V1.LevelType> levelMapper = new EnumMapper<MeterType, V1.LevelType>(
+	        MeterType.class, V1.LevelType.class);
 	private static final StateMachine<State, Event, ControlV1> stateMachine = new StateMachine<State, Event, ControlV1>(
 	        Event.class, State.CONNECTING);
 
@@ -72,7 +71,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
 	private StateMachine<State, Event, ControlV1>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
-	private Map<Integer, Level> channelToLevelMapping = null;
+	private Map<Integer, MeterConfig> channelToMeterConfigMapping = null;
 	private Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -82,10 +81,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	static
 	{
 		// set the enum mapper
-		levelMapper.addMapping(Level.NONE, V1.LevelType.NONE);
-		levelMapper.addMapping(Level.DIGITALPEAK, V1.LevelType.DIGITALPEAK);
-		levelMapper.addMapping(Level.PPM, V1.LevelType.PPM);
-		levelMapper.addMapping(Level.VU, V1.LevelType.VU);
+		levelMapper.addMapping(MeterType.NONE, V1.LevelType.NONE);
+		levelMapper.addMapping(MeterType.DIGITALPEAK, V1.LevelType.DIGITALPEAK);
+		levelMapper.addMapping(MeterType.PPM, V1.LevelType.PPM);
+		levelMapper.addMapping(MeterType.VU, V1.LevelType.VU);
 
 		// setup the state machine
 		stateMachine.addHandler(State.CONNECTING, Event.CONNECTED,
@@ -131,20 +130,20 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	public void updateLevel(int channel, Level level)
+	public void updateLevel(int channel, MeterConfig config)
 	{
-		Log.v(TAG, "ControlV1::updateLevel enter index=" + channel + " level="
-		        + level);
+		Log.v(TAG, "ControlV1::updateLevel enter index=" + channel + " type="
+		        + config.getMeterType());
 
 		// make sure this is a valid channel
-		if (false == this.channelToLevelMapping.containsKey(channel))
+		if (false == this.channelToMeterConfigMapping.containsKey(channel))
 		{
 			Log.wtf(TAG, "invalid channel=" + channel);
 			return;
 		}
 
 		// store the new setting
-		this.channelToLevelMapping.put(channel, level);
+		this.channelToMeterConfigMapping.put(channel, config);
 
 		// clear the levels
 		this.levelDataRecords.remove(channel);
@@ -156,12 +155,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		Log.v(TAG, "ControlV1::updateLevel exit");
 	}
 
-	public void updateLevels(Map<Integer, Level> levels)
+	public void updateLevels(Map<Integer, MeterConfig> levels)
 	{
 		Log.v(TAG, "ControlV1::updateLevels enter levels=" + levels);
 
 		// store the new settings
-		this.channelToLevelMapping = levels;
+		this.channelToMeterConfigMapping = levels;
 
 		// clear all records
 		this.levelDataRecords.clear();
@@ -198,9 +197,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		return manager;
 	}
 
-	public Map<Integer, Level> getLevels()
+	public Map<Integer, MeterConfig> getLevels()
 	{
-		return channelToLevelMapping;
+		return channelToMeterConfigMapping;
 	}
 
 	public Map<Integer, LevelDataRecord> getLevelDataRecord()
@@ -267,16 +266,21 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// private method implementations
 	// ////////////////////////////////////////////////////////////////////////
 
-	private void sendLevelRequest(int channel, Level level)
+	private void sendLevelRequest(int channel, MeterConfig config)
 	{
 		Log.v(TAG, "ControlV1::sendLevelRequest enter channel=" + channel
-		        + " level=" + level);
+		        + " config=" + config);
 
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
 		        .newBuilder();
-		setLevelRequestBuilder.setType(levelMapper.mapToExternal(level));
+		setLevelRequestBuilder.setType(levelMapper.mapToExternal(config
+		        .getMeterType()));
 		setLevelRequestBuilder.setChannel(channel);
+		if (null != config.getHoldtime())
+		{
+			setLevelRequestBuilder.setHoldtime(config.getHoldtime());
+		}
 		V1.Request.Builder requestBuilder = V1.Request.newBuilder();
 		requestBuilder.setSetlevel(setLevelRequestBuilder);
 		requestBuilder.setType(V1.RequestType.SETLEVEL);
@@ -396,11 +400,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 				{
 					// convert the type into our internal version
-					Level recordLevel = levelMapper.mapToInternal(record
+					MeterType recordLevel = levelMapper.mapToInternal(record
 					        .getType());
 					// get the configured level
-					Level configuredLevel = this.channelToLevelMapping
-					        .get(record.getChannel());
+					MeterType configuredLevel = this.channelToMeterConfigMapping
+					        .get(record.getChannel()).getMeterType();
 					// ignore if the type doesn't match
 					if (false == recordLevel.equals(configuredLevel))
 					{
@@ -554,17 +558,19 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			for (int channel : response.getChannelsList())
 			{
 				// if we don't know about this channel populate
-				if (false == object.channelToLevelMapping.containsKey(channel))
+				if (false == object.channelToMeterConfigMapping
+				        .containsKey(channel))
 				{
 					Log.d(TAG, "unknown channel=" + channel
 					        + ", setting to NONE");
 					// store the channel
-					object.channelToLevelMapping.put(channel, Level.NONE);
+					object.channelToMeterConfigMapping.put(channel,
+					        new MeterConfig(MeterType.NONE));
 				}
 				else
 				{
 					object.sendLevelRequest(channel,
-					        object.channelToLevelMapping.get(channel));
+					        object.channelToMeterConfigMapping.get(channel));
 				}
 			}
 
@@ -603,7 +609,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			Log.v(TAG,
 			        "ControlV1::ChangeLevelInConnectedHandler::handleEvent enter object="
 			                + object + " data=" + data);
-			for (Map.Entry<Integer, Level> entry : object.channelToLevelMapping
+			for (Map.Entry<Integer, MeterConfig> entry : object.channelToMeterConfigMapping
 			        .entrySet())
 			{
 				// send the new level

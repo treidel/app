@@ -1,7 +1,7 @@
 package com.jebussystems.levelingglass.control;
 
 
-public enum Level
+public enum MeterType
 {
 	NONE, VU, DIGITALPEAK, PPM;
 }

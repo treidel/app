@@ -10,5 +10,5 @@
     <string name="levelselection_ppm">PPM</string>
     <string name="levelselection_digitalpeak">Digital Peak</string>
     <string name="levelselection_vu">VU</string>
-
+    <string name="nolevel_clickhere">Click Here</string>
 </resources>

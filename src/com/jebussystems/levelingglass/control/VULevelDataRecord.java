@@ -16,8 +16,8 @@ public class VULevelDataRecord extends LevelDataRecord
 	}
 
 	@Override
-	public Level getType()
+	public MeterType getType()
 	{
-		return Level.VU;
+		return MeterType.VU;
 	}
 }

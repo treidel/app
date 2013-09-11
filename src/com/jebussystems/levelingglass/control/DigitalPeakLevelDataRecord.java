@@ -18,9 +18,9 @@ public class DigitalPeakLevelDataRecord extends LevelDataRecord
 	}
 
 	@Override
-	public Level getType()
+	public MeterType getType()
 	{
-		return Level.DIGITALPEAK;
+		return MeterType.DIGITALPEAK;
 	}
 
 }

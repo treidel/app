@@ -13,7 +13,7 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import com.jebussystems.levelingglass.control.ControlV1;
-import com.jebussystems.levelingglass.control.Level;
+import com.jebussystems.levelingglass.control.MeterType;
 
 public class LevelingGlassApplication extends Application
 {
@@ -37,7 +37,7 @@ public class LevelingGlassApplication extends Application
 	private SharedPreferences preferences;
 	private ControlV1 control;
 	private BluetoothDevice device;
-	private Map<Integer, Level> levels = new TreeMap<Integer, Level>();
+	private Map<Integer, MeterType> levels = new TreeMap<Integer, MeterType>();
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -88,7 +88,7 @@ public class LevelingGlassApplication extends Application
 			Log.d(TAG, "found channel=" + id + " type=" + type);
 			
 			// put the level in the lookup
-			this.levels.put(Integer.valueOf(id), Level.valueOf(type));
+			this.levels.put(Integer.valueOf(id), MeterType.valueOf(type));
 		}
 		// create the control object
 		this.control = new ControlV1();
@@ -122,12 +122,12 @@ public class LevelingGlassApplication extends Application
 		Log.v(TAG, "LevelingGlassApplication::setDevice exit");
 	}
 
-	public Level getLevelForChannel(int channel)
+	public MeterType getLevelForChannel(int channel)
 	{
 		return this.levels.get(channel);
 	}
 
-	public void setLevelForChannel(int channel, Level level)
+	public void setLevelForChannel(int channel, MeterType level)
 	{
 		Log.v(TAG, "LevelingGlassApplication::setLevelForChannel enter channel=" + channel + " level=" + level);
 		
@@ -135,7 +135,7 @@ public class LevelingGlassApplication extends Application
 		this.levels.put(channel, level);
 		// save all levels
 		Set<String> channels = new HashSet<String>(this.levels.size());
-		for (Map.Entry<Integer, Level> entry : this.levels.entrySet())
+		for (Map.Entry<Integer, MeterType> entry : this.levels.entrySet())
 		{
 			String value = entry.getKey() + ":" + entry.getValue();
 			channels.add(value);

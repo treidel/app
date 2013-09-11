@@ -17,9 +17,9 @@ public class PPMLevelDataRecord extends LevelDataRecord
 	}
 
 	@Override
-	public Level getType()
+	public MeterType getType()
 	{
-		return Level.PPM;
+		return MeterType.PPM;
 	}
 
 }

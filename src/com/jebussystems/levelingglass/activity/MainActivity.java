@@ -18,9 +18,10 @@ import android.widget.SeekBar;
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.ControlV1;
-import com.jebussystems.levelingglass.control.Level;
-import com.jebussystems.levelingglass.control.LevelDataRecord;
 import com.jebussystems.levelingglass.control.DigitalPeakLevelDataRecord;
+import com.jebussystems.levelingglass.control.LevelDataRecord;
+import com.jebussystems.levelingglass.control.MeterConfig;
+import com.jebussystems.levelingglass.control.MeterType;
 import com.jebussystems.levelingglass.control.PPMLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
 import com.jebussystems.levelingglass.view.AudioLevelView;
@@ -125,13 +126,13 @@ public class MainActivity extends Activity
 		LayoutInflater vi = (LayoutInflater) getApplicationContext()
 		        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
-		for (Map.Entry<Integer, Level> entry : application.getControl()
+		for (Map.Entry<Integer, MeterConfig> entry : application.getControl()
 		        .getLevels().entrySet())
 		{
 
 			// this will be populated below
 			int layoutId;
-			switch (entry.getValue())
+			switch (entry.getValue().getMeterType())
 			{
 				case NONE:
 					layoutId = R.layout.nolevel;
@@ -305,7 +306,8 @@ public class MainActivity extends Activity
 			// populate which level we're currently set to
 			RadioGroup radioGroup = (RadioGroup) layout
 			        .findViewById(R.id.radiogroup_level);
-			Level level = application.getControl().getLevels().get(index);
+			MeterType level = application.getControl().getLevels().get(index)
+			        .getMeterType();
 			switch (level)
 			{
 				case NONE:
@@ -367,30 +369,57 @@ public class MainActivity extends Activity
 
 			// get the selected button
 			int id = group.getCheckedRadioButtonId();
-			switch (id)
+			// convert to a type
+			MeterType type = convertRadioIdToMeterType(id);
+			// assume no hold time for now
+			Integer holdtime = null;
+			// for certain meter types we have one
+			switch (type)
 			{
-				case R.id.radio_levelselection_none:
-					application.getControl().updateLevel(channel, Level.NONE);
-					break;
-				case R.id.radio_levelsection_digitalpeak:
-					application.getControl().updateLevel(channel,
-					        Level.DIGITALPEAK);
-					break;
-				case R.id.radio_levelsection_ppm:
-					application.getControl().updateLevel(channel, Level.PPM);
-					break;
-				case R.id.radio_levelsection_vu:
-					application.getControl().updateLevel(channel, Level.VU);
+				case DIGITALPEAK:
+				case PPM:
+				{
+					// extract the hold time
+					SeekBar seekBar = (SeekBar) layout
+					        .findViewById(R.id.seekbar_holdtime);
+					holdtime = seekBar.getProgress();
+				}
 					break;
 				default:
-					Log.wtf(TAG, "unknown radio button id=" + id);
-					return;
+					Log.v(TAG, "no hold time needed for type=" + type);
+					break;
 			}
+
+			// create the meter config object
+			MeterConfig config = new MeterConfig(type);
+			config.setHoldtime(holdtime);
+
+			// set the config
+			application.getControl().updateLevel(channel, config);
+
 			// force a recreation of all level views
 			populateLevelViews();
 
 			Log.v(TAG,
 			        "MainActivity::LevelRadioClickListener::onClick::run exit");
+		}
+
+		private MeterType convertRadioIdToMeterType(int id)
+		{
+			switch (id)
+			{
+				case R.id.radio_levelselection_none:
+					return MeterType.NONE;
+				case R.id.radio_levelsection_digitalpeak:
+					return MeterType.DIGITALPEAK;
+				case R.id.radio_levelsection_ppm:
+					return MeterType.PPM;
+				case R.id.radio_levelsection_vu:
+					return MeterType.VU;
+				default:
+					Log.wtf(TAG, "unknown radio button id=" + id);
+					return null;
+			}
 		}
 	}
 
