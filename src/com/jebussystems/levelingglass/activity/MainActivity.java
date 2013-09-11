@@ -12,6 +12,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RadioGroup;
+import android.widget.RadioGroup.OnCheckedChangeListener;
+import android.widget.SeekBar;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
@@ -202,6 +204,30 @@ public class MainActivity extends Activity
 		}
 	}
 
+	private void updateSelectionDialog(ViewGroup layout, int checkedId)
+	{
+		// find the seek bar
+		SeekBar seekBar = (SeekBar) layout.findViewById(R.id.seekbar_holdtime);
+
+		switch (checkedId)
+		{
+			case R.id.radio_levelselection_none:
+			case R.id.radio_levelsection_vu:
+				// they selected none or VU so hide the seek bar
+				seekBar.setVisibility(View.INVISIBLE);
+				break;
+
+			case R.id.radio_levelsection_digitalpeak:
+			case R.id.radio_levelsection_ppm:
+				// they selected digital or PPM so reveal the seek bar
+				seekBar.setVisibility(View.VISIBLE);
+				break;
+			default:
+				Log.wtf(TAG, "unknown radio button id=" + checkedId);
+				return;
+		}
+	}
+
 	// /////////////////////////////////////////////////////////////////////////
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
@@ -276,6 +302,35 @@ public class MainActivity extends Activity
 			LayoutInflater inflater = getLayoutInflater();
 			ViewGroup layout = (ViewGroup) inflater.inflate(
 			        R.layout.levelselection, null);
+			// populate which level we're currently set to
+			RadioGroup radioGroup = (RadioGroup) layout
+			        .findViewById(R.id.radiogroup_level);
+			Level level = application.getControl().getLevels().get(index);
+			switch (level)
+			{
+				case NONE:
+					radioGroup.check(R.id.radio_levelselection_none);
+					break;
+				case PPM:
+					radioGroup.check(R.id.radio_levelsection_ppm);
+					break;
+				case DIGITALPEAK:
+					radioGroup.check(R.id.radio_levelsection_digitalpeak);
+					break;
+				case VU:
+					radioGroup.check(R.id.radio_levelsection_vu);
+					break;
+				default:
+					Log.wtf(TAG, "unknown level=" + level);
+					return;
+			}
+			// add a listener
+			radioGroup
+			        .setOnCheckedChangeListener(new LevelRadioCheckedChangeListener(
+			                layout));
+			// update the dialog
+			updateSelectionDialog(layout, radioGroup.getCheckedRadioButtonId());
+			// finish popping up the dialog
 			builder.setView(layout);
 			builder.setPositiveButton(getString(android.R.string.ok),
 			        new LevelRadioClickListener(layout, index + 1));
@@ -285,7 +340,6 @@ public class MainActivity extends Activity
 			Log.v(TAG,
 			        "MainActivity::LevelViewClickListener::onClick::run exit");
 		}
-
 	}
 
 	private class LevelRadioClickListener implements
@@ -338,5 +392,29 @@ public class MainActivity extends Activity
 			Log.v(TAG,
 			        "MainActivity::LevelRadioClickListener::onClick::run exit");
 		}
+	}
+
+	private class LevelRadioCheckedChangeListener implements
+	        OnCheckedChangeListener
+	{
+		private final ViewGroup layout;
+
+		public LevelRadioCheckedChangeListener(ViewGroup layout)
+		{
+			this.layout = layout;
+		}
+
+		@Override
+		public void onCheckedChanged(RadioGroup group, int id)
+		{
+			Log.v(TAG,
+			        "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged enter group"
+			                + group + " id=" + id);
+			// update the selection dialog
+			updateSelectionDialog(layout, id);
+			Log.v(TAG,
+			        "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged exit");
+		}
+
 	}
 }
