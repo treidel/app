@@ -13,6 +13,7 @@ import v1.V1;
 import android.util.Log;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPMessageHandler;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPState;
@@ -66,12 +67,13 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	private final ScheduledExecutorService executor = Executors
 	        .newSingleThreadScheduledExecutor();
+	private final LevelingGlassApplication application;
 	private final SPPManager manager;
 	private final Collection<EventListener> listeners = new LinkedList<EventListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
 	private StateMachine<State, Event, ControlV1>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
-	private Map<Integer, MeterConfig> channelToMeterConfigMapping = null;
+	// private Map<Integer, MeterConfig> channelToMeterConfigMapping = null;
 	private Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -111,9 +113,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// constructors
 	// /////////////////////////////////////////////////////////////////////////
 
-	public ControlV1()
+	public ControlV1(LevelingGlassApplication application)
 	{
 		Log.v(TAG, "ControlV1::ControlV1 enter");
+
+		// store the application
+		this.application = application;
 
 		// create the SPP mananger
 		this.manager = new SPPManager(this);
@@ -130,46 +135,18 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	public void updateLevel(int channel, MeterConfig config)
+	public void notifyLevelConfigChange()
 	{
-		Log.v(TAG, "ControlV1::updateLevel enter index=" + channel + " type="
-		        + config.getMeterType());
+		Log.v(TAG, "ControlV1::notifyLevelConfigChange enter");
 
-		// make sure this is a valid channel
-		if (false == this.channelToMeterConfigMapping.containsKey(channel))
-		{
-			Log.wtf(TAG, "invalid channel=" + channel);
-			return;
-		}
-
-		// store the new setting
-		this.channelToMeterConfigMapping.put(channel, config);
-
-		// clear the levels
-		this.levelDataRecords.remove(channel);
-
-		// trigger the state machine
-		LevelChangeMessage message = new LevelChangeMessage();
-		this.executor.execute(message);
-
-		Log.v(TAG, "ControlV1::updateLevel exit");
-	}
-
-	public void updateLevels(Map<Integer, MeterConfig> levels)
-	{
-		Log.v(TAG, "ControlV1::updateLevels enter levels=" + levels);
-
-		// store the new settings
-		this.channelToMeterConfigMapping = levels;
-
-		// clear all records
+		// clear all level data
 		this.levelDataRecords.clear();
 
 		// trigger the state machine
 		LevelChangeMessage message = new LevelChangeMessage();
 		this.executor.execute(message);
 
-		Log.v(TAG, "ControlV1::updateLevels exit");
+		Log.v(TAG, "ControlV1::updateLevel exit");
 	}
 
 	public void addListener(EventListener listener)
@@ -195,11 +172,6 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	public SPPManager getManager()
 	{
 		return manager;
-	}
-
-	public Map<Integer, MeterConfig> getLevels()
-	{
-		return channelToMeterConfigMapping;
 	}
 
 	public Map<Integer, LevelDataRecord> getLevelDataRecord()
@@ -403,8 +375,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					MeterType recordLevel = levelMapper.mapToInternal(record
 					        .getType());
 					// get the configured level
-					MeterType configuredLevel = this.channelToMeterConfigMapping
-					        .get(record.getChannel()).getMeterType();
+					MeterType configuredLevel = application
+					        .getConfigForChannel(record.getChannel())
+					        .getMeterType();
 					// ignore if the type doesn't match
 					if (false == recordLevel.equals(configuredLevel))
 					{
@@ -558,19 +531,20 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			for (int channel : response.getChannelsList())
 			{
 				// if we don't know about this channel populate
-				if (false == object.channelToMeterConfigMapping
-				        .containsKey(channel))
+				MeterConfig config = object.application
+				        .getConfigForChannel(channel);
+				if (null == config)
 				{
 					Log.d(TAG, "unknown channel=" + channel
 					        + ", setting to NONE");
 					// store the channel
-					object.channelToMeterConfigMapping.put(channel,
+					object.application.setConfigForChannel(channel,
 					        new MeterConfig(MeterType.NONE));
 				}
 				else
 				{
-					object.sendLevelRequest(channel,
-					        object.channelToMeterConfigMapping.get(channel));
+					Log.d(TAG, "updating channel=" + channel);
+					object.sendLevelRequest(channel, config);
 				}
 			}
 
@@ -609,11 +583,13 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			Log.v(TAG,
 			        "ControlV1::ChangeLevelInConnectedHandler::handleEvent enter object="
 			                + object + " data=" + data);
-			for (Map.Entry<Integer, MeterConfig> entry : object.channelToMeterConfigMapping
-			        .entrySet())
+			for (int channel : object.application.getChannelSet())
 			{
+				// get the config
+				MeterConfig config = object.application
+				        .getConfigForChannel(channel);
 				// send the new level
-				object.sendLevelRequest(entry.getKey(), entry.getValue());
+				object.sendLevelRequest(channel, config);
 			}
 			// no change in state
 			Log.v(TAG,

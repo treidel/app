@@ -126,13 +126,13 @@ public class MainActivity extends Activity
 		LayoutInflater vi = (LayoutInflater) getApplicationContext()
 		        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
-		for (Map.Entry<Integer, MeterConfig> entry : application.getControl()
-		        .getLevels().entrySet())
+		for (int channel : application.getChannelSet())
 		{
-
+			// get the channel config
+			MeterConfig config = application.getConfigForChannel(channel);
 			// this will be populated below
 			int layoutId;
-			switch (entry.getValue().getMeterType())
+			switch (config.getMeterType())
 			{
 				case NONE:
 					layoutId = R.layout.nolevel;
@@ -147,7 +147,7 @@ public class MainActivity extends Activity
 					layoutId = R.layout.vulevel;
 					break;
 				default:
-					Log.wtf(TAG, "unknown level type=" + entry.getValue());
+					Log.wtf(TAG, "unknown level type=" + config.getMeterType());
 					return;
 			}
 			// inflate the layout for the audio view
@@ -157,7 +157,7 @@ public class MainActivity extends Activity
 			// remove it from the exploded layout
 			viewGroup.removeView(view);
 			// add the display view to the layout
-			this.layout.addView(view, entry.getKey() - 1);
+			this.layout.addView(view, channel - 1);
 			// add a listener
 			view.setOnClickListener(new LevelViewClickListener());
 		}
@@ -306,7 +306,7 @@ public class MainActivity extends Activity
 			// populate which level we're currently set to
 			RadioGroup radioGroup = (RadioGroup) layout
 			        .findViewById(R.id.radiogroup_level);
-			MeterType level = application.getControl().getLevels().get(index)
+			MeterType level = application.getConfigForChannel(index)
 			        .getMeterType();
 			switch (level)
 			{
@@ -394,8 +394,11 @@ public class MainActivity extends Activity
 			MeterConfig config = new MeterConfig(type);
 			config.setHoldtime(holdtime);
 
+			// store the meter config
+			application.setConfigForChannel(channel, config);
+
 			// set the config
-			application.getControl().updateLevel(channel, config);
+			application.getControl().notifyLevelConfigChange();
 
 			// force a recreation of all level views
 			populateLevelViews();

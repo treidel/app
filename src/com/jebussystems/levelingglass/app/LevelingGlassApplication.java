@@ -13,7 +13,10 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import com.jebussystems.levelingglass.control.ControlV1;
-import com.jebussystems.levelingglass.control.MeterType;
+import com.jebussystems.levelingglass.control.MeterConfig;
+
+import flexjson.JSONDeserializer;
+import flexjson.JSONSerializer;
 
 public class LevelingGlassApplication extends Application
 {
@@ -30,6 +33,9 @@ public class LevelingGlassApplication extends Application
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
 
+	private static final JSONSerializer meterConfigSerializer = new JSONSerializer();
+	private static final JSONDeserializer<MeterConfig> meterConfigDeserializer = new JSONDeserializer<MeterConfig>();
+
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
@@ -37,7 +43,7 @@ public class LevelingGlassApplication extends Application
 	private SharedPreferences preferences;
 	private ControlV1 control;
 	private BluetoothDevice device;
-	private Map<Integer, MeterType> levels = new TreeMap<Integer, MeterType>();
+	private Map<Integer, MeterConfig> meterConfigMap = new TreeMap<Integer, MeterConfig>();
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -51,7 +57,7 @@ public class LevelingGlassApplication extends Application
 	public void onCreate()
 	{
 		Log.v(TAG, "LevelingGlassApplication::onCreate enter");
-		
+
 		// create the preferences object
 		this.preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
 		// fetch the stored device
@@ -83,18 +89,21 @@ public class LevelingGlassApplication extends Application
 			// separate the channel id from the level
 			StringTokenizer tokenizer = new StringTokenizer(channel, ":");
 			String id = tokenizer.nextToken();
-			String type = tokenizer.nextToken();
-			
-			Log.d(TAG, "found channel=" + id + " type=" + type);
-			
+			String value = tokenizer.nextToken();
+
+			Log.d(TAG, "found channel=" + id + " value=" + value);
+
+			// deserialize the meter config
+			MeterConfig config = meterConfigDeserializer.deserialize(value);
+
 			// put the level in the lookup
-			this.levels.put(Integer.valueOf(id), MeterType.valueOf(type));
+			this.meterConfigMap.put(Integer.valueOf(id), config);
 		}
 		// create the control object
-		this.control = new ControlV1();
+		this.control = new ControlV1(this);
 		// set channel/level data
-		this.control.updateLevels(this.levels);
-		
+		this.control.notifyLevelConfigChange();
+
 		Log.v(TAG, "LevelingGlassApplication::onCreate exit");
 	}
 
@@ -111,43 +120,52 @@ public class LevelingGlassApplication extends Application
 	public void setDevice(BluetoothDevice device)
 	{
 		Log.v(TAG, "LevelingGlassApplication::setDevice enter device=" + device);
-		
+
 		// store the device
 		this.device = device;
 		// save in the preferences
 		SharedPreferences.Editor editor = this.preferences.edit();
 		editor.putString(DEVICE_KEY, device.getAddress());
 		editor.commit();
-		
+
 		Log.v(TAG, "LevelingGlassApplication::setDevice exit");
 	}
 
-	public MeterType getLevelForChannel(int channel)
+	public Set<Integer> getChannelSet()
 	{
-		return this.levels.get(channel);
+		return this.meterConfigMap.keySet();
 	}
 
-	public void setLevelForChannel(int channel, MeterType level)
+	public MeterConfig getConfigForChannel(int channel)
 	{
-		Log.v(TAG, "LevelingGlassApplication::setLevelForChannel enter channel=" + channel + " level=" + level);
-		
-		// store the level
-		this.levels.put(channel, level);
-		// save all levels
-		Set<String> channels = new HashSet<String>(this.levels.size());
-		for (Map.Entry<Integer, MeterType> entry : this.levels.entrySet())
+		return this.meterConfigMap.get(channel);
+	}
+
+	public void setConfigForChannel(int channel, MeterConfig config)
+	{
+		Log.v(TAG,
+		        "LevelingGlassApplication::setConfigForChannel enter channel="
+		                + channel + " config=" + config);
+
+		// store the config
+		this.meterConfigMap.put(channel, config);
+		// serialize the config for all levels
+		Set<String> channels = new HashSet<String>(this.meterConfigMap.size());
+		for (Map.Entry<Integer, MeterConfig> entry : this.meterConfigMap
+		        .entrySet())
 		{
-			String value = entry.getKey() + ":" + entry.getValue();
+			String serializedObject = meterConfigSerializer.serialize(entry
+			        .getValue());
+			String value = entry.getKey() + ":" + serializedObject;
 			channels.add(value);
 		}
 		// save in the preferences
 		SharedPreferences.Editor editor = this.preferences.edit();
 		editor.putStringSet(LEVELS_KEY, channels);
 		editor.commit();
-		
+
 		Log.v(TAG, "LevelingGlassApplication::setLevelForChannel exit");
 	}
-
 	// /////////////////////////////////////////////////////////////////////////
 	// protected methods
 	// /////////////////////////////////////////////////////////////////////////
