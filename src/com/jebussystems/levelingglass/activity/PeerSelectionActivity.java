@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
@@ -62,9 +63,10 @@ public class PeerSelectionActivity extends Activity
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		super.onCreate(savedInstanceState);
+		Log.v(TAG, "PeerSelectionActivity::onCreate enter savedInstanceState="
+		        + savedInstanceState);
 
-		Log.d(TAG, "onCreate");
+		super.onCreate(savedInstanceState);
 
 		// fetch the application
 		this.application = (LevelingGlassApplication) getApplication();
@@ -85,33 +87,40 @@ public class PeerSelectionActivity extends Activity
 		// setup the listener
 		listView.setOnItemClickListener(new ItemClickListener());
 
+		Log.v(TAG, "PeerSelectionActivity::onCreate exit");
 	}
 
 	@Override
 	protected void onStart()
 	{
-		super.onStart();
+		Log.v(TAG, "PeerSelectionActivity::onStart enter");
 
-		Log.d(TAG, "onStart");
+		super.onStart();
 
 		// see if we already have a configured device
 		BluetoothDevice device = application.getDevice();
 		if (null != device)
 		{
+			Log.d(TAG, "existing device found " + device);
 			// start the connection activity
-			startWaitForConnectionActivity(device);
+			handleDeviceSelected(device);
 			return;
 		}
 
 		// load the list of devices
 		loadDevices();
+
+		Log.v(TAG, "PeerSelectionActivity::onStart exit");
 	}
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data)
 	{
+		Log.v(TAG, "PeerSelectionActivity::onActivityResult enter requestCode="
+		        + requestCode + " resultCode=" + resultCode + " data=" + data);
 		// reload the devices
 		loadDevices();
+		Log.v(TAG, "PeerSelectionActivity::onActivityResult exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -152,8 +161,11 @@ public class PeerSelectionActivity extends Activity
 		this.adapter.addAll(devices);
 	}
 
-	private void startWaitForConnectionActivity(BluetoothDevice device)
+	private void handleDeviceSelected(BluetoothDevice device)
 	{
+		Log.d(TAG, "device selected " + device);
+		// store the device
+		application.setDevice(device);
 		// tell the waiting for connection activity to take over
 		Intent intent = new Intent(PeerSelectionActivity.this,
 		        WaitingForConnectionActivity.class);
@@ -190,8 +202,25 @@ public class PeerSelectionActivity extends Activity
 		public void onItemClick(AdapterView<?> parent, View view, int position,
 		        long id)
 		{
+			Log.v(TAG,
+			        "PeerSelectionActivity::ItemClickListener::onItemClick enter parent="
+			                + parent + " view=" + view + " position="
+			                + position + " id=" + id);
 			// find the device that was selected
 			final BluetoothDevice device = adapter.getItem(position);
+
+			// see if we're able to check that the device is selected
+			if (Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+			{
+				// we can't query the remote device via SDP to see what it
+				// supports so
+				// we'll assume the user knows what they are doing
+				Log.d(TAG,
+				        "API level 15 not available, assuming compatibility for device="
+				                + device);
+				handleDeviceSelected(device);
+				return;
+			}
 
 			// create a dialog that will tell them we're doing to check the
 			// device
@@ -223,6 +252,9 @@ public class PeerSelectionActivity extends Activity
 				// show the dialog
 				checkingDialog.show();
 			}
+
+			Log.v(TAG,
+			        "PeerSelectionActivity::ItemClickListener::onItemClick exit");
 		}
 	}
 
@@ -238,6 +270,9 @@ public class PeerSelectionActivity extends Activity
 		@Override
 		public void onReceive(Context context, Intent intent)
 		{
+			Log.v(TAG,
+			        "PeerSelectionActivity::IntentReceiver::onReceive enter context="
+			                + context + " intent=" + intent);
 			String action = intent.getAction();
 			// Evaluate service discovery result
 			if (BluetoothDevice.ACTION_UUID.equals(action))
@@ -258,13 +293,14 @@ public class PeerSelectionActivity extends Activity
 					if (true == uuid.getUuid().equals(SPPManager.SERVER_UUID))
 					{
 						// start the connection activity
-						startWaitForConnectionActivity(device);
+						handleDeviceSelected(device);
 						return;
 					}
 				}
 				// if we get here the device is not compatible so let them know
 				notifyDeviceNotCompatible();
 			}
+			Log.v(TAG, "PeerSelectionActivity::IntentReceiver::onReceive exit");
 		}
 	};
 
@@ -281,9 +317,13 @@ public class PeerSelectionActivity extends Activity
 		@Override
 		public void onCancel(DialogInterface dialog)
 		{
-			Log.d(TAG, "cancel clicked");
+			Log.v(TAG,
+			        "PeerSelectionActivity::CancelCompatibilityListener::onCancel enter dialog="
+			                + dialog);
 			// deregister the receiver
 			unregisterReceiver(receiver);
+			Log.v(TAG,
+			        "PeerSelectionActivity::CancelCompatibilityListener::onCancel exit");
 		}
 	}
 
@@ -294,8 +334,12 @@ public class PeerSelectionActivity extends Activity
 		@Override
 		public void onClick(DialogInterface dialog, int which)
 		{
-			Log.d(TAG, "ok clicked");
+			Log.v(TAG,
+			        "PeerSelectionActivity::NotCompatibleOkClickListener::onClick enter dialog="
+			                + dialog + " which=" + which);
 			dialog.cancel();
+			Log.v(TAG,
+			        "PeerSelectionActivity::NotCompatibleOkClickListener::onClick exit");
 		}
 
 	}
@@ -307,12 +351,16 @@ public class PeerSelectionActivity extends Activity
 		@Override
 		public void onClick(DialogInterface dialog, int which)
 		{
-			Log.d(TAG, "ok clicked");
+			Log.v(TAG,
+			        "PeerSelectionActivity::NoneFoundOkClickListener::onClick enter dialog="
+			                + dialog + " which=" + which);
 			// disable the dialog
 			dialog.dismiss();
 			// pop up the pairing screen
 			Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
 			startActivityForResult(intent, REQUEST_PAIR_DEVICE);
+			Log.v(TAG,
+			        "PeerSelectionActivity::NoneFoundOkClickListener::onClick exit");
 		}
 
 	}
