@@ -125,7 +125,14 @@ public class LevelingGlassApplication extends Application
 		this.device = device;
 		// save in the preferences
 		SharedPreferences.Editor editor = this.preferences.edit();
-		editor.putString(DEVICE_KEY, device.getAddress());
+		if (null != device)
+		{
+			editor.putString(DEVICE_KEY, device.getAddress());
+		}
+		else
+		{
+			editor.remove(DEVICE_KEY);
+		}
 		editor.commit();
 
 		Log.v(TAG, "LevelingGlassApplication::setDevice exit");

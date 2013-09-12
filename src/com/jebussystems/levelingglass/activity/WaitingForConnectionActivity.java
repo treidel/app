@@ -100,6 +100,9 @@ public class WaitingForConnectionActivity extends Activity
 						        WaitingForConnectionActivity.this,
 						        MainActivity.class);
 						startActivity(intent);
+						// kill ourselves so that the user won't come back here if they hit 
+						// the back button
+						finish();
 					}
 				}
 			});
@@ -121,6 +124,9 @@ public class WaitingForConnectionActivity extends Activity
 		{
 			// force a disconnection
 			application.getControl().getManager().disconnect();
+			
+			// forget about the device 
+			application.setDevice(null);
 			
 			// go back to the peer selection activity
 			finish();
