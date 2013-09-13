@@ -2,7 +2,7 @@ package com.jebussystems.levelingglass.control;
 
 public class MeterConfig
 {
-	private final int channel;
+	private int channel;
 	private MeterType metertype;
 	private Integer holdtime;
 
@@ -10,6 +10,11 @@ public class MeterConfig
 	{
 		this.channel = channel;
 		this.metertype = metertype;
+	}
+
+	protected MeterConfig()
+	{
+
 	}
 
 	public int getChannel()

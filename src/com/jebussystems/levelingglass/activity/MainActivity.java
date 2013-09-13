@@ -113,6 +113,19 @@ public class MainActivity extends Activity
 		Log.v(TAG, "MainActivity::onStop exit");
 	}
 
+	@Override
+	protected void onDestroy()
+	{
+		Log.v(TAG, "MainActivity::onDestroy enter");
+
+		super.onStop();
+
+		// force a disconnect
+		application.getControl().getManager().disconnect();
+
+		Log.v(TAG, "MainActivity::onDestroy exit");
+	}
+
 	// /////////////////////////////////////////////////////////////////////////
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
@@ -306,9 +319,8 @@ public class MainActivity extends Activity
 			// populate which level we're currently set to
 			RadioGroup radioGroup = (RadioGroup) layout
 			        .findViewById(R.id.radiogroup_level);
-			MeterType level = application.getConfigForChannel(index)
-			        .getMeterType();
-			switch (level)
+			MeterConfig config = application.getConfigForChannel(index + 1);
+			switch (config.getMeterType())
 			{
 				case NONE:
 					radioGroup.check(R.id.radio_levelselection_none);
@@ -323,7 +335,7 @@ public class MainActivity extends Activity
 					radioGroup.check(R.id.radio_levelsection_vu);
 					break;
 				default:
-					Log.wtf(TAG, "unknown level=" + level);
+					Log.wtf(TAG, "unknown level=" + config.getMeterType());
 					return;
 			}
 			// add a listener
@@ -335,7 +347,7 @@ public class MainActivity extends Activity
 			// finish popping up the dialog
 			builder.setView(layout);
 			builder.setPositiveButton(getString(android.R.string.ok),
-			        new LevelRadioClickListener(layout, index + 1));
+			        new LevelRadioClickListener(layout, config.getChannel()));
 			AlertDialog dialog = builder.create();
 			dialog.show();
 
