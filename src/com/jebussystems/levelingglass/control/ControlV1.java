@@ -537,9 +537,9 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 				{
 					Log.d(TAG, "unknown channel=" + channel
 					        + ", setting to NONE");
-					// store the channel
-					object.application.setConfigForChannel(channel,
-					        new MeterConfig(MeterType.NONE));
+					// create + store the channel config
+					config = new MeterConfig(channel, MeterType.NONE);
+					object.application.setConfigForChannel(config);
 				}
 				else
 				{

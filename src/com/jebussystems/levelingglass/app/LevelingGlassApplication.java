@@ -3,7 +3,6 @@ package com.jebussystems.levelingglass.app;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.TreeMap;
 
 import android.app.Application;
@@ -86,18 +85,13 @@ public class LevelingGlassApplication extends Application
 		        new HashSet<String>());
 		for (String channel : channels)
 		{
-			// separate the channel id from the level
-			StringTokenizer tokenizer = new StringTokenizer(channel, ":");
-			String id = tokenizer.nextToken();
-			String value = tokenizer.nextToken();
-
-			Log.d(TAG, "found channel=" + id + " value=" + value);
-
 			// deserialize the meter config
-			MeterConfig config = meterConfigDeserializer.deserialize(value);
+			MeterConfig config = meterConfigDeserializer.deserialize(channel);
+
+			Log.d(TAG, "found channel=" + config.getChannel());
 
 			// put the level in the lookup
-			this.meterConfigMap.put(Integer.valueOf(id), config);
+			this.meterConfigMap.put(config.getChannel(), config);
 		}
 		// create the control object
 		this.control = new ControlV1(this);
@@ -148,23 +142,20 @@ public class LevelingGlassApplication extends Application
 		return this.meterConfigMap.get(channel);
 	}
 
-	public void setConfigForChannel(int channel, MeterConfig config)
+	public void setConfigForChannel(MeterConfig config)
 	{
 		Log.v(TAG,
-		        "LevelingGlassApplication::setConfigForChannel enter channel="
-		                + channel + " config=" + config);
+		        "LevelingGlassApplication::setConfigForChannel enter config="
+		                + config);
 
 		// store the config
-		this.meterConfigMap.put(channel, config);
+		this.meterConfigMap.put(config.getChannel(), config);
 		// serialize the config for all levels
 		Set<String> channels = new HashSet<String>(this.meterConfigMap.size());
-		for (Map.Entry<Integer, MeterConfig> entry : this.meterConfigMap
-		        .entrySet())
+		for (MeterConfig value : this.meterConfigMap.values())
 		{
-			String serializedObject = meterConfigSerializer.serialize(entry
-			        .getValue());
-			String value = entry.getKey() + ":" + serializedObject;
-			channels.add(value);
+			String serializedObject = meterConfigSerializer.serialize(value);
+			channels.add(serializedObject);
 		}
 		// save in the preferences
 		SharedPreferences.Editor editor = this.preferences.edit();

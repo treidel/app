@@ -391,11 +391,11 @@ public class MainActivity extends Activity
 			}
 
 			// create the meter config object
-			MeterConfig config = new MeterConfig(type);
+			MeterConfig config = new MeterConfig(channel, type);
 			config.setHoldtime(holdtime);
 
 			// store the meter config
-			application.setConfigForChannel(channel, config);
+			application.setConfigForChannel(config);
 
 			// set the config
 			application.getControl().notifyLevelConfigChange();

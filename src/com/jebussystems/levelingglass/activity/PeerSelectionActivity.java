@@ -86,6 +86,16 @@ public class PeerSelectionActivity extends Activity
 
 		// setup the listener
 		listView.setOnItemClickListener(new ItemClickListener());
+		
+		// see if we already have a configured device
+		BluetoothDevice device = application.getDevice();
+		if (null != device)
+		{
+			Log.d(TAG, "existing device found " + device);
+			// start the connection activity
+			handleDeviceSelected(device);
+			return;
+		}
 
 		Log.v(TAG, "PeerSelectionActivity::onCreate exit");
 	}
@@ -97,18 +107,13 @@ public class PeerSelectionActivity extends Activity
 
 		super.onStart();
 
-		// see if we already have a configured device
-		BluetoothDevice device = application.getDevice();
-		if (null != device)
-		{
-			Log.d(TAG, "existing device found " + device);
-			// start the connection activity
-			handleDeviceSelected(device);
-			return;
-		}
-
 		// load the list of devices
 		loadDevices();
+		
+		// remove the existing device as we only get here in these cases:
+		// 1. no device is configured
+		// 2. user hits back to exit from the main activity
+		application.setDevice(null);
 
 		Log.v(TAG, "PeerSelectionActivity::onStart exit");
 	}

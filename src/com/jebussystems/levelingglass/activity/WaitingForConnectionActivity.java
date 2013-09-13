@@ -29,7 +29,7 @@ public class WaitingForConnectionActivity extends Activity
 	{
 		super.onCreate(savedInstanceState);
 		Log.i(TAG, "onCreate");
-		
+
 		// fetch the application
 		this.application = (LevelingGlassApplication) getApplication();
 
@@ -50,7 +50,7 @@ public class WaitingForConnectionActivity extends Activity
 		// populate the peer name
 		TextView peerTextView = (TextView) findViewById(R.id.peer_textview);
 		peerTextView.setText(device.toString());
-		
+
 		// start the connection
 		application.getControl().getManager().connect(device);
 	}
@@ -63,9 +63,10 @@ public class WaitingForConnectionActivity extends Activity
 
 		// add ourselves as a listener
 		application.getControl().addListener(listener);
-		
-		// update the state 
-		this.statusTextView.setText(application.getControl().getState().toString());
+
+		// update the state
+		this.statusTextView.setText(application.getControl().getState()
+		        .toString());
 	}
 
 	@Override
@@ -95,14 +96,15 @@ public class WaitingForConnectionActivity extends Activity
 					// if we're connected then switch to the main activity
 					if (true == ControlV1.State.CONNECTED.equals(stateCopy))
 					{
+						// kill ourselves so that the user won't come back here
+						// if they hit
+						// the back button
+						finish();
 						// start the main activity
 						Intent intent = new Intent(
 						        WaitingForConnectionActivity.this,
 						        MainActivity.class);
 						startActivity(intent);
-						// kill ourselves so that the user won't come back here if they hit 
-						// the back button
-						finish();
 					}
 				}
 			});
@@ -124,10 +126,10 @@ public class WaitingForConnectionActivity extends Activity
 		{
 			// force a disconnection
 			application.getControl().getManager().disconnect();
-			
-			// forget about the device 
+
+			// forget about the device
 			application.setDevice(null);
-			
+
 			// go back to the peer selection activity
 			finish();
 		}
