@@ -12,8 +12,8 @@
         android:layout_width="match_parent"
         android:layout_height="?android:attr/listPreferredItemHeight"
         android:padding="2dp"
-        custom:ceiling="30"
-        custom:floor="-96"
+        custom:ceiling="5"
+        custom:floor="-15"
         custom:level="0"
         custom:normal_color="@android:color/holo_green_light"
         custom:peak_color="@android:color/holo_red_light" />
