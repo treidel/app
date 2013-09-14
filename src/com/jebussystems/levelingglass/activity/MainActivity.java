@@ -120,9 +120,13 @@ public class MainActivity extends Activity
 
 		super.onStop();
 
-		// force a disconnect
-		application.getControl().getManager().disconnect();
-
+		// see if this is a real destroy
+		if (true == isFinishing())
+		{
+			// force a disconnect
+			application.getControl().getManager().disconnect();
+		}
+		
 		Log.v(TAG, "MainActivity::onDestroy exit");
 	}
 
