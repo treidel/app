@@ -14,8 +14,10 @@
         android:padding="2dp"
         custom:ceiling="0"
         custom:floor="-30"
-        custom:level="0"
+        custom:hold="-5"
+        custom:hold_color="@android:color/darker_gray"
+        custom:level="-10"
         custom:normal_color="@android:color/holo_orange_light"
-        custom:peak_color="@android:color/holo_red_light" />
+        custom:peak_color="@android:color/white" />
 
 </LinearLayout>

@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <declare-styleable name="AudioLevel">
         <attr name="normal_color" format="color" />
         <attr name="peak_color" format="color" />
-        <attr name="level" format="integer" />
+        <attr name="level" format="float" />
         <attr name="floor" format="integer" />
         <attr name="ceiling" format="integer" />
+        <attr name="hold_color" format="color" />
+        <attr name="hold" format="float" />
     </declare-styleable>
+
 </resources>
