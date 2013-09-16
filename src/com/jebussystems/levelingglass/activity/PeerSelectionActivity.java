@@ -173,9 +173,7 @@ public class PeerSelectionActivity extends Activity
 		application.setDevice(device);
 		// tell the waiting for connection activity to take over
 		Intent intent = new Intent(PeerSelectionActivity.this,
-		        WaitingForConnectionActivity.class);
-		intent.putExtra(WaitingForConnectionActivity.BLUETOOTHDEVICE_NAME,
-		        device);
+		        MainActivity.class);
 		// take over
 		startActivity(intent);
 	}

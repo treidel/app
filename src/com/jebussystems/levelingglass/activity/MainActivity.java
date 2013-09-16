@@ -4,6 +4,7 @@ import java.util.Map;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
@@ -14,6 +15,7 @@ import android.view.ViewGroup;
 import android.widget.RadioGroup;
 import android.widget.RadioGroup.OnCheckedChangeListener;
 import android.widget.SeekBar;
+import android.widget.TextView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
@@ -43,7 +45,7 @@ public class MainActivity extends Activity
 	// /////////////////////////////////////////////////////////////////////////
 
 	private LevelingGlassApplication application;
-	private ControlEventListener listener = new ControlEventListener();
+	private ControlEventListener listener;
 	private ViewGroup layout = null;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -69,6 +71,13 @@ public class MainActivity extends Activity
 		// fetch the application
 		this.application = (LevelingGlassApplication) getApplication();
 
+		// create the listener
+		this.listener = new ControlEventListener();
+
+		// start a connection to the device
+		BluetoothDevice device = application.getDevice();
+		application.getControl().getManager().connect(device);
+
 		// setup the layout
 		setContentView(R.layout.main);
 
@@ -90,6 +99,9 @@ public class MainActivity extends Activity
 		// get the control object and add ourselves as a listener
 		ControlV1 control = application.getControl();
 		control.addListener(listener);
+
+		// refresh the dialog state
+		listener.refresh();
 
 		// do the layout
 		populateLevelViews();
@@ -126,7 +138,7 @@ public class MainActivity extends Activity
 			// force a disconnect
 			application.getControl().getManager().disconnect();
 		}
-		
+
 		Log.v(TAG, "MainActivity::onDestroy exit");
 	}
 
@@ -252,12 +264,61 @@ public class MainActivity extends Activity
 
 	private class ControlEventListener implements ControlV1.EventListener
 	{
+		private final AlertDialog dialog;
+		private final TextView statusView;
+
+		public ControlEventListener()
+		{
+			// create the builder
+			AlertDialog.Builder builder = new AlertDialog.Builder(
+			        MainActivity.this);
+			LayoutInflater inflater = getLayoutInflater();
+			ViewGroup layout = (ViewGroup) inflater.inflate(
+			        R.layout.waitingforconnection, null);
+			// save a reference to the status textview
+			this.statusView = (TextView) layout
+			        .findViewById(R.id.status_textview);
+			// update the peer name
+			TextView peerView = (TextView) layout
+			        .findViewById(R.id.peer_textview);
+			peerView.setText(application.getDevice().toString());
+			// set the layout for the dialog
+			builder.setView(layout);
+			builder.setPositiveButton(android.R.string.cancel,
+			        new CancelConnectionClickListener());
+			builder.setCancelable(true);
+			// create + run the dialog
+			this.dialog = builder.create();
+		}
+
+		public void refresh()
+		{
+			final ControlV1.State state = application.getControl().getState();
+			runOnUiThread(new Runnable()
+			{
+				@Override
+				public void run()
+				{
+					if (true == state.equals(ControlV1.State.CONNECTED))
+					{
+						dialog.hide();
+					}
+					else
+					{
+						statusView.setText(state.toString());
+						dialog.show();
+					}
+				}
+			});
+		}
+
 		@Override
 		public void notifyStateChange(ControlV1.State state)
 		{
 			Log.v(TAG,
 			        "MainActivity::ControlEventListener::notifyStateChange enter state="
 			                + state);
+			final ControlV1.State copy = state;
 			if (false == ControlV1.State.CONNECTED.equals(state))
 			{
 				runOnUiThread(new Runnable()
@@ -265,11 +326,22 @@ public class MainActivity extends Activity
 					@Override
 					public void run()
 					{
-						Log.v(TAG,
-						        "MainActivity::ControlEventListener::notifyStateChange::run enter");
-						finish();
-						Log.v(TAG,
-						        "MainActivity::ControlEventListener::notifyStateChange::run exit");
+						// update the text
+						statusView.setText(copy.toString());
+						// show the dialog
+						dialog.show();
+					}
+				});
+			}
+			else
+			{
+				runOnUiThread(new Runnable()
+				{
+					@Override
+					public void run()
+					{
+						// hide the dialog
+						dialog.hide();
 					}
 				});
 			}
@@ -299,7 +371,6 @@ public class MainActivity extends Activity
 			Log.v(TAG,
 			        "MainActivity::ControlEventListener::notifyLevelsUpdated exit");
 		}
-
 	}
 
 	private class LevelViewClickListener implements View.OnClickListener
@@ -462,6 +533,25 @@ public class MainActivity extends Activity
 			updateSelectionDialog(layout, id);
 			Log.v(TAG,
 			        "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged exit");
+		}
+
+	}
+
+	private class CancelConnectionClickListener implements
+	        DialogInterface.OnClickListener
+	{
+
+		@Override
+		public void onClick(DialogInterface dialog, int which)
+		{
+			Log.v(TAG,
+			        "MainActivity::CancelConnectionClickListener::onClick enter dialog="
+			                + dialog + " which=" + which);
+			// disconnect and close this activity
+			application.getControl().getManager().disconnect();
+			MainActivity.this.finish();
+			Log.v(TAG,
+			        "MainActivity::CancelConnectionClickListener::onClick exit");
 		}
 
 	}
