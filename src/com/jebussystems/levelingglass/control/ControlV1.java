@@ -389,9 +389,14 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					{
 						case PPM:
 							// create + store a peak data record
+							Float holdInDB = null;
+							if (true == record.hasHoldInDB())
+							{
+								holdInDB = record.getHoldInDB();
+							}
 							levelDataRecords.put(record.getChannel(),
 							        new PPMLevelDataRecord(record.getChannel(),
-							                record.getPeakInDB()));
+							                record.getPeakInDB(), holdInDB));
 							break;
 						case DIGITALPEAK:
 							// create + store a peak data record

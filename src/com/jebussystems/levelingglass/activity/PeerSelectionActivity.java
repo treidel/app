@@ -109,11 +109,6 @@ public class PeerSelectionActivity extends Activity
 
 		// load the list of devices
 		loadDevices();
-		
-		// remove the existing device as we only get here in these cases:
-		// 1. no device is configured
-		// 2. user hits back to exit from the main activity
-		application.setDevice(null);
 
 		Log.v(TAG, "PeerSelectionActivity::onStart exit");
 	}

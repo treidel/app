@@ -132,6 +132,9 @@ public class MainActivity extends Activity
 
 		super.onStop();
 
+		// clean up the listener
+		listener.stop();
+		
 		// see if this is a real destroy
 		if (true == isFinishing())
 		{
@@ -213,6 +216,8 @@ public class MainActivity extends Activity
 						// set the level
 						audiolevel.setLevel(((PPMLevelDataRecord) record)
 						        .getPeakLevelInDB());
+						audiolevel.setHold(((PPMLevelDataRecord) record)
+						        .getHoldLevelInDB());
 						break;
 					case DIGITALPEAK:
 						// set the level
@@ -310,6 +315,11 @@ public class MainActivity extends Activity
 					}
 				}
 			});
+		}
+		
+		public void stop()
+		{
+			this.dialog.dismiss();
 		}
 
 		@Override
