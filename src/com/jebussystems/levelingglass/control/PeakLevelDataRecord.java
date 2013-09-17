@@ -1,12 +1,12 @@
 package com.jebussystems.levelingglass.control;
 
-public class PPMLevelDataRecord extends LevelDataRecord
+public class PeakLevelDataRecord extends LevelDataRecord
 {
 
 	private final float peakLevelInDB;
 	private final Float holdLevelInDB;
 
-	public PPMLevelDataRecord(int channel, float peakLevelInDB,
+	public PeakLevelDataRecord(int channel, float peakLevelInDB,
 	        Float holdLevelInDB)
 	{
 		super(channel);

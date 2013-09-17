@@ -15,16 +15,16 @@ import android.view.ViewGroup;
 import android.widget.RadioGroup;
 import android.widget.RadioGroup.OnCheckedChangeListener;
 import android.widget.SeekBar;
+import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.ControlV1;
-import com.jebussystems.levelingglass.control.DigitalPeakLevelDataRecord;
 import com.jebussystems.levelingglass.control.LevelDataRecord;
 import com.jebussystems.levelingglass.control.MeterConfig;
 import com.jebussystems.levelingglass.control.MeterType;
-import com.jebussystems.levelingglass.control.PPMLevelDataRecord;
+import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
@@ -134,7 +134,7 @@ public class MainActivity extends Activity
 
 		// clean up the listener
 		listener.stop();
-		
+
 		// see if this is a real destroy
 		if (true == isFinishing())
 		{
@@ -213,17 +213,12 @@ public class MainActivity extends Activity
 				switch (record.getType())
 				{
 					case PPM:
-						// set the level
-						audiolevel.setLevel(((PPMLevelDataRecord) record)
-						        .getPeakLevelInDB());
-						audiolevel.setHold(((PPMLevelDataRecord) record)
-						        .getHoldLevelInDB());
-						break;
 					case DIGITALPEAK:
 						// set the level
-						audiolevel
-						        .setLevel(((DigitalPeakLevelDataRecord) record)
-						                .getPeakLevelInDB());
+						audiolevel.setLevel(((PeakLevelDataRecord) record)
+						        .getPeakLevelInDB());
+						audiolevel.setHold(((PeakLevelDataRecord) record)
+						        .getHoldLevelInDB());
 						break;
 					case VU:
 						// set the level
@@ -241,21 +236,21 @@ public class MainActivity extends Activity
 
 	private void updateSelectionDialog(ViewGroup layout, int checkedId)
 	{
-		// find the seek bar
-		SeekBar seekBar = (SeekBar) layout.findViewById(R.id.seekbar_holdtime);
+		// find the hold time layout
+		View holdtimeLayout = layout.findViewById(R.id.layout_holdtime);
 
 		switch (checkedId)
 		{
 			case R.id.radio_levelselection_none:
 			case R.id.radio_levelsection_vu:
-				// they selected none or VU so hide the seek bar
-				seekBar.setVisibility(View.INVISIBLE);
+				// they selected none or VU so hide the hold time views
+				holdtimeLayout.setVisibility(View.INVISIBLE);
 				break;
 
 			case R.id.radio_levelsection_digitalpeak:
 			case R.id.radio_levelsection_ppm:
-				// they selected digital or PPM so reveal the seek bar
-				seekBar.setVisibility(View.VISIBLE);
+				// they selected digital or PPM so reveal the hold time views
+				holdtimeLayout.setVisibility(View.VISIBLE);
 				break;
 			default:
 				Log.wtf(TAG, "unknown radio button id=" + checkedId);
@@ -316,7 +311,7 @@ public class MainActivity extends Activity
 				}
 			});
 		}
-		
+
 		public void stop()
 		{
 			this.dialog.dismiss();
@@ -429,6 +424,18 @@ public class MainActivity extends Activity
 			                layout));
 			// update the dialog
 			updateSelectionDialog(layout, radioGroup.getCheckedRadioButtonId());
+			// add a listener for the hold time seekbar
+			SeekBar holdtimeSeekbar = (SeekBar) layout
+			        .findViewById(R.id.seekbar_holdtime);
+			TextView holdtimeTextview = (TextView) layout
+			        .findViewById(R.id.textview_holdtime);
+			holdtimeSeekbar
+			        .setOnSeekBarChangeListener(new HoldTimeSeekbarChangeListener(
+			                holdtimeTextview));
+			if (null != config.getHoldtime())
+			{
+				holdtimeSeekbar.setProgress(config.getHoldtime());
+			}
 			// finish popping up the dialog
 			builder.setView(layout);
 			builder.setPositiveButton(getString(android.R.string.ok),
@@ -489,7 +496,11 @@ public class MainActivity extends Activity
 
 			// create the meter config object
 			MeterConfig config = new MeterConfig(channel, type);
-			config.setHoldtime(holdtime);
+			// only see the hold time if it isn't zero
+			if ((null != holdtime) && (0 != holdtime))
+			{
+				config.setHoldtime(holdtime);
+			}
 
 			// store the meter config
 			application.setConfigForChannel(config);
@@ -543,6 +554,46 @@ public class MainActivity extends Activity
 			updateSelectionDialog(layout, id);
 			Log.v(TAG,
 			        "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged exit");
+		}
+
+	}
+
+	private class HoldTimeSeekbarChangeListener implements
+	        OnSeekBarChangeListener
+	{
+		private final TextView textView;
+
+		public HoldTimeSeekbarChangeListener(TextView textView)
+		{
+			this.textView = textView;
+		}
+
+		@Override
+		public void onProgressChanged(SeekBar seekBar, int progress,
+		        boolean fromUser)
+		{
+			// update the label
+			if (0 == progress)
+			{
+				this.textView.setText(MainActivity.this.getResources()
+				        .getString(R.string.levelselection_off));
+			}
+			else
+			{
+				this.textView.setText(String.valueOf(progress));
+			}
+		}
+
+		@Override
+		public void onStartTrackingTouch(SeekBar seekBar)
+		{
+			// ignore
+		}
+
+		@Override
+		public void onStopTrackingTouch(SeekBar seekBar)
+		{
+			// ignore
 		}
 
 	}
