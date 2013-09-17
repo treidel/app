@@ -1,11 +1,18 @@
 package com.jebussystems.levelingglass.view;
 
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Set;
+import java.util.StringTokenizer;
+
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.RectF;
+import android.graphics.Path;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
@@ -24,8 +31,9 @@ public class AudioLevelView extends View
 	private static final int DEFAULT_FLOOR = -24;
 	private static final int DEFAULT_LEVEL = DEFAULT_FLOOR;
 	private static final int DEFAULT_NORMAL_COLOR = Color.GREEN;
-	private static final int DEFAULT_PEAK_COLOR = Color.RED;
-	private static final int DEFAULT_HOLD_COLOR = Color.YELLOW;
+	private static final int DEFAULT_ERROR_COLOR = Color.RED;
+	private static final int DEFAULT_HOLD_COLOR = Color.GRAY;
+	private static final int DEFAULT_MARK_COLOR = Color.DKGRAY;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
@@ -35,19 +43,30 @@ public class AudioLevelView extends View
 	// variables
 	// /////////////////////////////////////////////////////////////////////////
 
-	private int floor;
-	private int ceiling;
+	// variables populated by attribute or at runtime
+	private final int floor;
+	private final int ceiling;
+	private final Set<Integer> marks = new HashSet<Integer>();
 	private float level;
 	private Float hold;
-	private Paint normalPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-	private Paint peakPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+	// internal paint variables
+	private Paint okPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+	private Paint errorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private Paint holdPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-	private RectF normalRect;
-	private RectF peakRect;
-	private RectF holdRect;
-	private final int normalColor;
-	private final int peakColor;
-	private final int holdColor;
+	private Paint markPaint = new Paint();
+
+	// internally calculated variables populated by onSizeChanged() whenever the
+	// view size changes
+	private Rect okRange;
+	private Rect errorRange;
+	private Rect holdRange;
+
+	// internally calculated variables used by the paint routine
+	private final Rect okRect = new Rect();
+	private final Rect errorRect = new Rect();
+	private final Rect holdRect = new Rect();
+	private final Collection<Path> markPaths = new LinkedList<Path>();
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -65,36 +84,52 @@ public class AudioLevelView extends View
 		        R.styleable.AudioLevel, 0, 0);
 		try
 		{
-			this.normalColor = a.getColor(R.styleable.AudioLevel_normal_color,
+			int okColor = a.getColor(R.styleable.AudioLevel_ok_color,
 			        DEFAULT_NORMAL_COLOR);
-			this.peakColor = a.getColor(R.styleable.AudioLevel_peak_color,
-			        DEFAULT_PEAK_COLOR);
+			int errorColor = a.getColor(R.styleable.AudioLevel_error_color,
+			        DEFAULT_ERROR_COLOR);
+			int holdColor = a.getColor(R.styleable.AudioLevel_hold_color,
+			        DEFAULT_HOLD_COLOR);
+			int markColor = a.getColor(R.styleable.AudioLevel_mark_color,
+			        DEFAULT_MARK_COLOR);
 			this.floor = a.getInt(R.styleable.AudioLevel_floor, DEFAULT_FLOOR);
 			this.ceiling = a.getInt(R.styleable.AudioLevel_ceiling,
 			        DEFAULT_CEILING);
 			this.level = a
 			        .getFloat(R.styleable.AudioLevel_level, DEFAULT_LEVEL);
 			this.hold = a.getFloat(R.styleable.AudioLevel_hold, DEFAULT_LEVEL);
+			String marks = a.getString(R.styleable.AudioLevel_marks);
+			if (null != marks)
+			{
+				// marks are comma separated integers
+				StringTokenizer tokenizer = new StringTokenizer(marks, ",");
+				while (true == tokenizer.hasMoreTokens())
+				{
+					String token = tokenizer.nextToken();
+					this.marks.add(Integer.valueOf(token));
+				}
+			}
 
-			this.holdColor = a.getColor(R.styleable.AudioLevel_hold_color,
-			        DEFAULT_HOLD_COLOR);
-
+			// set the paint to use
+			this.okPaint.setColor(okColor);
+			this.errorPaint.setColor(errorColor);
+			this.holdPaint.setColor(holdColor);
+			this.markPaint.setColor(markColor);
+			this.markPaint.setStrokeWidth(1f);
+			this.markPaint.setStyle(Paint.Style.STROKE);
+			this.markPaint.setStrokeJoin(Paint.Join.BEVEL);
 		}
 		finally
 		{
 			a.recycle();
 		}
-		// set the paint to use
-		this.normalPaint.setColor(this.normalColor);
-		this.peakPaint.setColor(this.peakColor);
-		this.holdPaint.setColor(this.holdColor);
 
 		Log.v(TAG, "AudioLevelView::AudioLevelView exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// public methods
-	// /////////////////////////////////////////////////////////////////////////
+	// //////////////////////////////////////////s///////////////////////////////
 
 	public void setLevel(float level)
 	{
@@ -103,8 +138,8 @@ public class AudioLevelView extends View
 		{
 			// set the level
 			this.level = level;
-			// calculate the drawing size
-			calculateDrawingArea(getWidth(), getHeight());
+			// force a recalculation of the dynamic values
+			updateDynamicValues();
 			// redraw
 			invalidate();
 		}
@@ -123,8 +158,8 @@ public class AudioLevelView extends View
 		{
 			// set the level
 			this.hold = hold;
-			// calculate the drawing size
-			calculateDrawingArea(getWidth(), getHeight());
+			// force a recalculation of the dynamic values
+			updateDynamicValues();
 			// redraw
 			invalidate();
 		}
@@ -136,33 +171,9 @@ public class AudioLevelView extends View
 		return hold;
 	}
 
-	public void setCeiling(int ceiling)
-	{
-		Log.v(TAG, "AudioLevelView::setCeiling enter ceiling=" + ceiling);
-		// store the ceiling
-		this.ceiling = ceiling;
-		// calculate the drawing size
-		calculateDrawingArea(getWidth(), getHeight());
-		// redraw
-		invalidate();
-		Log.v(TAG, "AudioLevelView::setCeiling exit");
-	}
-
 	public int getCeiling()
 	{
 		return ceiling;
-	}
-
-	public void setFloor(int floor)
-	{
-		Log.v(TAG, "AudioLevelView::setFloor enter floor=" + floor);
-		// store the floor
-		this.floor = floor;
-		// calculate the drawing size
-		calculateDrawingArea(getWidth(), getHeight());
-		// redraw
-		invalidate();
-		Log.v(TAG, "AudioLevelView::setFloor exit");
 	}
 
 	public int getFloor()
@@ -180,8 +191,54 @@ public class AudioLevelView extends View
 		Log.v(TAG, "AudioLevelView::onSizeChanged enter width=" + width
 		        + " height=" + height + " oldwidth=" + oldwidth + " oldheight="
 		        + oldheight);
-		// calculate the drawing size
-		calculateDrawingArea(width, height);
+		// calculate the offsets
+		int xOffset = getPaddingLeft();
+		int yOffset = getPaddingTop();
+		int xRange = width - getPaddingLeft() - getPaddingRight();
+		int yRange = height - getPaddingTop() - getPaddingBottom();
+
+		// calculate how 'wide' the level space is
+		int span = getCeiling() - getFloor();
+
+		// calculate the maximum widths of each band
+		int okRange = (int) (Math.abs(getFloor()) * (float) xRange / (float) span);
+
+		// calculate space for the marks
+		int yMark = (int) ((float) yRange * 0.15);
+
+		// calculate the ok range
+		this.okRange = new Rect(xOffset, yOffset + yMark, xOffset + okRange,
+		        yOffset + yRange - yMark);
+		this.errorRange = new Rect(this.okRange.right, this.okRange.top,
+		        xOffset + xRange, this.okRange.bottom);
+		this.holdRange = new Rect(this.okRange.left, this.okRange.top,
+		        this.errorRange.right, this.okRange.bottom);
+
+		// clear any existing marks
+		this.markPaths.clear();
+
+		// iterate through all marks to draw
+		for (int mark : this.marks)
+		{
+			int markPosition = xOffset
+			        + (((mark - getFloor()) * xRange) / span);
+			{
+				Path topPath = new Path();
+				topPath.moveTo(markPosition, yOffset);
+				topPath.lineTo(markPosition, yOffset + yMark - 1);
+				this.markPaths.add(topPath);
+			}
+			{
+				Path bottomPath = new Path();
+				bottomPath.moveTo(markPosition, yOffset + yRange - yMark);
+				bottomPath.lineTo(markPosition, yOffset + yRange - 1);
+				this.markPaths.add(bottomPath);
+			}
+		}
+
+		// calculate the drawing rects
+		updateDynamicValues();
+
 		Log.v(TAG, "AudioLevelView::onSizeChanged exit");
 	}
 
@@ -191,15 +248,14 @@ public class AudioLevelView extends View
 		Log.v(TAG, "AudioLevelView::onDraw enter canvas=" + canvas);
 		// call the super class
 		super.onDraw(canvas);
-		// giv'er
-		canvas.drawRect(this.normalRect, this.normalPaint);
-		if (null != this.peakRect)
+		// draw the error rect first so that the ok rect will draw over it if
+		// necessary
+		canvas.drawRect(this.errorRect, this.errorPaint);
+		canvas.drawRect(this.okRect, this.okPaint);
+		canvas.drawRect(this.holdRect, this.holdPaint);
+		for (Path path : this.markPaths)
 		{
-			canvas.drawRect(this.peakRect, this.peakPaint);
-		}
-		if (null != this.holdRect)
-		{
-			canvas.drawRect(this.holdRect, this.holdPaint);
+			canvas.drawPath(path, this.markPaint);
 		}
 		Log.v(TAG, "AudioLevelView::onDraw exit");
 	}
@@ -216,80 +272,59 @@ public class AudioLevelView extends View
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	private void calculateDrawingArea(int width, int height)
+	private void updateDynamicValues()
 	{
-		// Account for padding
-		float xpad = (float) (getPaddingLeft() + getPaddingRight());
-		float ypad = (float) (getPaddingTop() + getPaddingBottom());
-
-		// account for padding
-		float ww = (float) width - xpad;
-		float hh = (float) height - ypad;
-
-		// figure out the number of pixels for each rectangle
-		float ww_normal = Math.round(ww * (-getFloor())
-		        / (getCeiling() - getFloor()));
-		float ww_peak = Math.round(ww * getCeiling()
-		        / (getCeiling() - getFloor()));
+		// figure out the range of possible levels
+		int span = getCeiling() - getFloor();
 
 		// see if we're above or below the zero level
 		if (getLevel() < 0f)
 		{
-			// no peak rectangle needed
-			this.peakRect = null;
+			// no error rectangle needed
+			this.errorRect.setEmpty();
 			// // calculate the percent of pixels to draw
 			float percent = 1.0f - ((float) getLevel() / ((float) getFloor()));
 			// handle clipping
-			if (level < getFloor())
-			{
-				percent = 0.0f;
-			}
+			percent = Math.max(percent, 0.0f);
 			// calculate the number of pixels we need to draw
-			float pixels = ww_normal * percent;
+			int pixels = (int) ((float) this.okRange.width() * percent);
 			// size the drawing rectangle
-			this.normalRect = new RectF(getPaddingLeft(), getPaddingTop(),
-			        getPaddingLeft() + pixels, getPaddingTop() + hh);
+			this.okRect.set(this.okRange.left, this.okRange.top,
+			        this.okRange.left + pixels, this.okRange.bottom);
 		}
 		else
 		{
 			// normal rectangle is full
-			this.normalRect = new RectF(getPaddingLeft(), getPaddingTop(),
-			        getPaddingLeft() + ww_normal, getPaddingTop() + hh);
+			this.okRect.set(this.okRange);
 			// calculate the percent of pixels to draw
 			float percent = ((float) getLevel() / ((float) getCeiling()));
 			// handle clipping
-			if (level > getCeiling())
-			{
-				percent = 1.0f;
-			}
+			percent = Math.min(percent, 1.0f);
 			// calculate the number of pixels we need to draw
-			float pixels = ww_peak * percent;
+			int pixels = (int) ((float) this.errorRange.width() * percent);
 
 			// size the drawing rectangle
-			this.peakRect = new RectF(getPaddingLeft() + ww_normal,
-			        getPaddingTop(), getPaddingLeft() + ww_normal + pixels,
-			        getPaddingTop() + hh);
+			this.errorRect.set(this.errorRange.left, this.errorRange.top,
+			        this.errorRange.left + pixels, this.errorRange.bottom);
 		}
 		// if we have a hold then calculate where it should be placed
 		if (null != getHold())
 		{
 			// calculate the percentage point of the hold
-			float percent = (getHold() - getFloor())
-			        / (getCeiling() - getFloor());
-			//percent = 1.0f;
+			float percent = (getHold() - getFloor()) / span;
 			// handle clipping
 			percent = Math.min(percent, 1.0f);
 			percent = Math.max(percent, 0.0f);
 			// calculate the number of pixels in we need to draw
-			float pixels = ww * percent;
-			// size the line
-			this.holdRect = new RectF(getPaddingLeft() + pixels,
-			        getPaddingTop(), getPaddingLeft() + pixels + 1,
-			        getPaddingTop() + hh);
+			int pixels = (int) ((float) this.holdRange.width() * percent);
+			// size the drawing rectangle
+			this.holdRect.set(this.holdRange.left + pixels, this.holdRange.top,
+			        this.holdRange.left + pixels + 1, this.holdRange.bottom);
 		}
 		else
 		{
-			this.holdRect = null;
+			// clear the rect
+			this.holdRect.setEmpty();
 		}
 	}
 }

@@ -14,8 +14,6 @@
         android:padding="2dp"
         custom:ceiling="3"
         custom:floor="-20"
-        custom:level="0"
-        custom:normal_color="@android:color/holo_blue_light"
-        custom:peak_color="@android:color/holo_red_light" />
+        custom:level="0" />
 
 </LinearLayout>

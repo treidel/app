@@ -2,13 +2,15 @@
 <resources>
 
     <declare-styleable name="AudioLevel">
-        <attr name="normal_color" format="color" />
-        <attr name="peak_color" format="color" />
+        <attr name="ok_color" format="color" />
+        <attr name="error_color" format="color" />
+        <attr name="hold_color" format="color" />
+        <attr name="mark_color" format="color" />
         <attr name="level" format="float" />
         <attr name="floor" format="integer" />
         <attr name="ceiling" format="integer" />
-        <attr name="hold_color" format="color" />
         <attr name="hold" format="float" />
+        <attr name="marks" format="string" />
     </declare-styleable>
 
 </resources>

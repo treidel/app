@@ -13,9 +13,9 @@
         android:layout_height="?android:attr/listPreferredItemHeight"
         android:padding="2dp"
         custom:ceiling="5"
-        custom:floor="-15"
+        custom:floor="-50"
+        custom:hold="2"
         custom:level="0"
-        custom:normal_color="@android:color/holo_green_light"
-        custom:peak_color="@android:color/holo_red_light" />
+        custom:marks="5,0,-5,-10,-20,-30,-40,-50" />
 
 </LinearLayout>
