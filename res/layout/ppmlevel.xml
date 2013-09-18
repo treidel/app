@@ -15,7 +15,7 @@
         custom:ceiling="5"
         custom:floor="-50"
         custom:hold="2"
-        custom:level="0"
+        custom:level="2"
         custom:marks="5,0,-5,-10,-20,-30,-40,-50" />
 
 </LinearLayout>

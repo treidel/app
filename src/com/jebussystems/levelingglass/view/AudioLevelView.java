@@ -34,10 +34,18 @@ public class AudioLevelView extends View
 	private static final int DEFAULT_ERROR_COLOR = Color.RED;
 	private static final int DEFAULT_HOLD_COLOR = Color.GRAY;
 	private static final int DEFAULT_MARK_COLOR = Color.DKGRAY;
-
+ 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
 	// /////////////////////////////////////////////////////////////////////////
+	
+	private static class Label
+	{
+		public int x;
+		public int y;
+		public String text;
+		
+	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// variables
@@ -55,6 +63,7 @@ public class AudioLevelView extends View
 	private Paint errorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private Paint holdPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private Paint markPaint = new Paint();
+	private Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
 	// internally calculated variables populated by onSizeChanged() whenever the
 	// view size changes
@@ -67,6 +76,7 @@ public class AudioLevelView extends View
 	private final Rect errorRect = new Rect();
 	private final Rect holdRect = new Rect();
 	private final Collection<Path> markPaths = new LinkedList<Path>();
+	private final Collection<Label> labels = new LinkedList<Label>();
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -118,10 +128,15 @@ public class AudioLevelView extends View
 			this.markPaint.setStrokeWidth(1f);
 			this.markPaint.setStyle(Paint.Style.STROKE);
 			this.markPaint.setStrokeJoin(Paint.Join.BEVEL);
+			this.textPaint.setColor(markColor);
+			this.textPaint.setStyle(Paint.Style.STROKE);
+			this.textPaint.setStrokeWidth(1);
+			this.textPaint.setTextSize(16);
+			this.textPaint.setTextAlign(Paint.Align.CENTER); 
 		}
 		finally
 		{
-			a.recycle();
+			a.recycle(); 
 		}
 
 		Log.v(TAG, "AudioLevelView::AudioLevelView exit");
@@ -192,9 +207,9 @@ public class AudioLevelView extends View
 		        + " height=" + height + " oldwidth=" + oldwidth + " oldheight="
 		        + oldheight);
 		// calculate the offsets
-		int xOffset = getPaddingLeft();
+		int xOffset = getPaddingLeft() + 5;
 		int yOffset = getPaddingTop();
-		int xRange = width - getPaddingLeft() - getPaddingRight();
+		int xRange = width - getPaddingLeft() - getPaddingRight() - 10;
 		int yRange = height - getPaddingTop() - getPaddingBottom();
 
 		// calculate how 'wide' the level space is
@@ -203,37 +218,44 @@ public class AudioLevelView extends View
 		// calculate the maximum widths of each band
 		int okRange = (int) (Math.abs(getFloor()) * (float) xRange / (float) span);
 
-		// calculate space for the marks
+		// calculate space for the marks + labels
 		int yMark = (int) ((float) yRange * 0.15);
+		int yLabel = (int) ((float) yRange * 0.30);
+
+		// calculate space reserved for the meter itself
+		int yMeter = yRange - yMark - yLabel;
 
 		// calculate the ok range
-		this.okRange = new Rect(xOffset, yOffset + yMark, xOffset + okRange,
-		        yOffset + yRange - yMark);
+		this.okRange = new Rect(xOffset, yOffset, xOffset + okRange, yOffset
+		        + yMeter);
 		this.errorRange = new Rect(this.okRange.right, this.okRange.top,
 		        xOffset + xRange, this.okRange.bottom);
 		this.holdRange = new Rect(this.okRange.left, this.okRange.top,
 		        this.errorRange.right, this.okRange.bottom);
 
-		// clear any existing marks
+		// clear any existing marks + labels
 		this.markPaths.clear();
+		this.labels.clear();
 
 		// iterate through all marks to draw
 		for (int mark : this.marks)
 		{
+			// calculate the position of the mark
 			int markPosition = xOffset
 			        + (((mark - getFloor()) * xRange) / span);
-			{
-				Path topPath = new Path();
-				topPath.moveTo(markPosition, yOffset);
-				topPath.lineTo(markPosition, yOffset + yMark - 1);
-				this.markPaths.add(topPath);
-			}
-			{
-				Path bottomPath = new Path();
-				bottomPath.moveTo(markPosition, yOffset + yRange - yMark);
-				bottomPath.lineTo(markPosition, yOffset + yRange - 1);
-				this.markPaths.add(bottomPath);
-			}
+			// create the path
+			Path path = new Path();
+			path.moveTo(markPosition, yOffset + yMeter);
+			path.lineTo(markPosition, yOffset + yMeter + yMark);
+			// add the path to the list to draw
+			this.markPaths.add(path);
+			// create the label
+			Label label = new Label();
+			label.x = markPosition;
+			label.y = yOffset + yMeter + yMark + yLabel + (int)(0.15f * this.textPaint.getTextSize());
+			label.text = String.valueOf(mark);
+			// add the label
+			this.labels.add(label);
 		}
 
 		// calculate the drawing rects
@@ -253,9 +275,15 @@ public class AudioLevelView extends View
 		canvas.drawRect(this.errorRect, this.errorPaint);
 		canvas.drawRect(this.okRect, this.okPaint);
 		canvas.drawRect(this.holdRect, this.holdPaint);
+		// draw each mark 
 		for (Path path : this.markPaths)
 		{
 			canvas.drawPath(path, this.markPaint);
+		}
+		// draw each label
+		for (Label label : this.labels)
+		{
+			canvas.drawText(label.text, label.x, label.y, this.textPaint);
 		}
 		Log.v(TAG, "AudioLevelView::onDraw exit");
 	}
