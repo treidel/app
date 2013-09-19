@@ -73,14 +73,14 @@ public class LogWrapper
 		// append all args
 		for (Object arg : args)
 		{
+			// output the arg as a string
+			buffer.append(arg);
 			// only output a space if this isn't a parameter arg
 			if ((false == arg instanceof String) || 
 				(false == ((String)arg).endsWith("=")))
 			{
 				buffer.append(' ');
-			}
-			// output the arg as a string
-			buffer.append(arg);
+			}			
 		}
 		return buffer.toString();
 	}

@@ -6,9 +6,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
-import android.util.Log;
 
 import com.jebussystems.levelingglass.R;
+import com.jebussystems.levelingglass.util.LogWrapper;
 
 public class SplashActivity extends Activity
 {
@@ -43,20 +43,22 @@ public class SplashActivity extends Activity
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		super.onCreate(savedInstanceState);
+		LogWrapper.v(TAG, "SplashActivity::onCreate enter", "this=", this);
 
-		Log.d(TAG, "onCreate");
+		super.onCreate(savedInstanceState);
 
 		// setup the layout
 		setContentView(R.layout.splash);
+
+		LogWrapper.v(TAG, "SplashActivity::onCreate exit");
 	}
 
 	@Override
 	protected void onStart()
 	{
-		super.onStart();
+		LogWrapper.v(TAG, "SplashActivity::onStart enter", "this=", this);
 
-		Log.d(TAG, "onStart");
+		super.onStart();
 
 		// create the handler for the delayed task
 		Handler handler = new Handler();
@@ -65,17 +67,22 @@ public class SplashActivity extends Activity
 			@Override
 			public void run()
 			{
+				LogWrapper.v(TAG, "SplashActivity::onStart::run enter",
+				        "this=", this);
+
 				// don't come back here if back is pressed
 				finish();
 
-				Log.d(TAG, "staring peer selection activity");
 				// otherwise start the peer selection activity
 				Intent intent = new Intent(SplashActivity.this,
 				        PeerSelectionActivity.class);
 				startActivity(intent);
 
+				LogWrapper.v(TAG, "SplashActivity::onStart::run exit");
 			}
 		}, TimeUnit.SECONDS.toMillis(SPLASH_DELAY_IN_SECS));
+
+		LogWrapper.v(TAG, "SplashActivity::onStart exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////

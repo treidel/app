@@ -8,7 +8,6 @@ import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,6 +25,7 @@ import com.jebussystems.levelingglass.control.MeterConfig;
 import com.jebussystems.levelingglass.control.MeterType;
 import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
+import com.jebussystems.levelingglass.util.LogWrapper;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
 public class MainActivity extends Activity
@@ -63,8 +63,8 @@ public class MainActivity extends Activity
 	@Override
 	protected void onCreate(Bundle savedInstanceState)
 	{
-		Log.v(TAG, "MainActivity::onCreate enter savedInstanceState="
-		        + savedInstanceState);
+		LogWrapper.v(TAG, "MainActivity::onCreate enter", "this=", this,
+		        "savedInstanceState=", savedInstanceState);
 
 		super.onCreate(savedInstanceState);
 
@@ -84,14 +84,14 @@ public class MainActivity extends Activity
 		// find the layout
 		this.layout = (ViewGroup) findViewById(R.id.main_layout);
 
-		Log.v(TAG, "MainActivity::onCreate exit");
+		LogWrapper.v(TAG, "MainActivity::onCreate exit");
 
 	}
 
 	@Override
 	protected void onStart()
 	{
-		Log.v(TAG, "MainActivity::onStart enter");
+		LogWrapper.v(TAG, "MainActivity::onStart enter", "this=", this);
 
 		// call the base class
 		super.onStart();
@@ -109,26 +109,26 @@ public class MainActivity extends Activity
 		// try the populate the level views
 		updateLevelData();
 
-		Log.v(TAG, "MainActivity::onStart exit");
+		LogWrapper.v(TAG, "MainActivity::onStart exit");
 	}
 
 	@Override
 	protected void onStop()
 	{
-		Log.v(TAG, "MainActivity::onStop enter");
+		LogWrapper.v(TAG, "MainActivity::onStop enter", "this=", this);
 
 		super.onStop();
 
 		// get the control object and add ourselves as a listener
 		application.getControl().removeListener(listener);
 
-		Log.v(TAG, "MainActivity::onStop exit");
+		LogWrapper.v(TAG, "MainActivity::onStop exit");
 	}
 
 	@Override
 	protected void onDestroy()
 	{
-		Log.v(TAG, "MainActivity::onDestroy enter");
+		LogWrapper.v(TAG, "MainActivity::onDestroy enter");
 
 		super.onStop();
 
@@ -142,7 +142,7 @@ public class MainActivity extends Activity
 			application.getControl().getManager().disconnect();
 		}
 
-		Log.v(TAG, "MainActivity::onDestroy exit");
+		LogWrapper.v(TAG, "MainActivity::onDestroy exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -179,7 +179,8 @@ public class MainActivity extends Activity
 					layoutId = R.layout.vulevel;
 					break;
 				default:
-					Log.wtf(TAG, "unknown level type=" + config.getMeterType());
+					LogWrapper.wtf(TAG, "unknown level type=",
+					        config.getMeterType());
 					return;
 			}
 			// inflate the layout for the audio view
@@ -226,7 +227,8 @@ public class MainActivity extends Activity
 						        .getVUInUnits());
 						break;
 					default:
-						Log.wtf(TAG, "unexpected level=" + record.getType());
+						LogWrapper.wtf(TAG, "unexpected level=",
+						        record.getType());
 						return;
 				}
 
@@ -253,7 +255,7 @@ public class MainActivity extends Activity
 				holdtimeLayout.setVisibility(View.VISIBLE);
 				break;
 			default:
-				Log.wtf(TAG, "unknown radio button id=" + checkedId);
+				LogWrapper.wtf(TAG, "unknown radio button id=", checkedId);
 				return;
 		}
 	}
@@ -320,9 +322,10 @@ public class MainActivity extends Activity
 		@Override
 		public void notifyStateChange(ControlV1.State state)
 		{
-			Log.v(TAG,
-			        "MainActivity::ControlEventListener::notifyStateChange enter state="
-			                + state);
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::ControlEventListener::notifyStateChange enter",
+			                "this=", this, "state=", state);
 			final ControlV1.State copy = state;
 			if (false == ControlV1.State.CONNECTED.equals(state))
 			{
@@ -350,31 +353,38 @@ public class MainActivity extends Activity
 					}
 				});
 			}
-			Log.v(TAG,
-			        "MainActivity::ControlEventListener::notifyStateChange exit");
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::ControlEventListener::notifyStateChange exit");
 		}
 
 		@Override
 		public void notifyLevelsUpdated()
 		{
-			Log.v(TAG,
-			        "MainActivity::ControlEventListener::notifyLevelsUpdated enter");
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::ControlEventListener::notifyLevelsUpdated enter",
+			                "this=", this);
 			runOnUiThread(new Runnable()
 			{
 
 				@Override
 				public void run()
 				{
-					Log.v(TAG,
-					        "MainActivity::ControlEventListener::notifyLevelsUpdated::run enter");
+					LogWrapper
+					        .v(TAG,
+					                "MainActivity::ControlEventListener::notifyLevelsUpdated::run enter",
+					                "this=", this);
 					// run the common update logic
 					updateLevelData();
-					Log.v(TAG,
-					        "MainActivity::ControlEventListener::notifyLevelsUpdated::run exit");
+					LogWrapper
+					        .v(TAG,
+					                "MainActivity::ControlEventListener::notifyLevelsUpdated::run exit");
 				}
 			});
-			Log.v(TAG,
-			        "MainActivity::ControlEventListener::notifyLevelsUpdated exit");
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::ControlEventListener::notifyLevelsUpdated exit");
 		}
 	}
 
@@ -384,9 +394,9 @@ public class MainActivity extends Activity
 		@Override
 		public void onClick(View view)
 		{
-			Log.v(TAG,
-			        "MainActivity::LevelViewClickListener::onClick::run enter view="
-			                + view);
+			LogWrapper.v(TAG,
+			        "MainActivity::LevelViewClickListener::onClick::run enter",
+			        "this=", this, "view=", view);
 
 			// figure out which view was clicked on
 			int index = layout.indexOfChild(view);
@@ -415,7 +425,8 @@ public class MainActivity extends Activity
 					radioGroup.check(R.id.radio_levelsection_vu);
 					break;
 				default:
-					Log.wtf(TAG, "unknown level=" + config.getMeterType());
+					LogWrapper
+					        .wtf(TAG, "unknown level=", config.getMeterType());
 					return;
 			}
 			// add a listener
@@ -443,7 +454,7 @@ public class MainActivity extends Activity
 			AlertDialog dialog = builder.create();
 			dialog.show();
 
-			Log.v(TAG,
+			LogWrapper.v(TAG,
 			        "MainActivity::LevelViewClickListener::onClick::run exit");
 		}
 	}
@@ -463,9 +474,10 @@ public class MainActivity extends Activity
 		@Override
 		public void onClick(DialogInterface dialog, int ignore)
 		{
-			Log.v(TAG,
-			        "MainActivity::LevelRadioClickListener::onClick::run enter dialog="
-			                + dialog + " ignore=" + ignore);
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::LevelRadioClickListener::onClick::run enter",
+			                "this=", this, "dialog=", dialog, "ignore=", ignore);
 
 			// fetch the radio group
 			RadioGroup group = (RadioGroup) layout
@@ -490,7 +502,7 @@ public class MainActivity extends Activity
 				}
 					break;
 				default:
-					Log.v(TAG, "no hold time needed for type=" + type);
+					LogWrapper.v(TAG, "no hold time needed for type=", type);
 					break;
 			}
 
@@ -511,7 +523,7 @@ public class MainActivity extends Activity
 			// force a recreation of all level views
 			populateLevelViews();
 
-			Log.v(TAG,
+			LogWrapper.v(TAG,
 			        "MainActivity::LevelRadioClickListener::onClick::run exit");
 		}
 
@@ -528,7 +540,7 @@ public class MainActivity extends Activity
 				case R.id.radio_levelsection_vu:
 					return MeterType.VU;
 				default:
-					Log.wtf(TAG, "unknown radio button id=" + id);
+					LogWrapper.wtf(TAG, "unknown radio button id=", id);
 					return null;
 			}
 		}
@@ -547,13 +559,15 @@ public class MainActivity extends Activity
 		@Override
 		public void onCheckedChanged(RadioGroup group, int id)
 		{
-			Log.v(TAG,
-			        "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged enter group"
-			                + group + " id=" + id);
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged enter",
+			                "this=", this, "group=", group, "id=", id);
 			// update the selection dialog
 			updateSelectionDialog(layout, id);
-			Log.v(TAG,
-			        "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged exit");
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged exit");
 		}
 
 	}
@@ -572,6 +586,11 @@ public class MainActivity extends Activity
 		public void onProgressChanged(SeekBar seekBar, int progress,
 		        boolean fromUser)
 		{
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::HoldTimeSeekbarChangeListener::onProgressChanged enter",
+			                "this=", this, "seekBar=", seekBar, "progress=",
+			                progress, "fromUser=", fromUser);
 			// update the label
 			if (0 == progress)
 			{
@@ -582,6 +601,9 @@ public class MainActivity extends Activity
 			{
 				this.textView.setText(String.valueOf(progress));
 			}
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::HoldTimeSeekbarChangeListener::onProgressChanged exit");
 		}
 
 		@Override
@@ -605,14 +627,16 @@ public class MainActivity extends Activity
 		@Override
 		public void onClick(DialogInterface dialog, int which)
 		{
-			Log.v(TAG,
-			        "MainActivity::CancelConnectionClickListener::onClick enter dialog="
-			                + dialog + " which=" + which);
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::CancelConnectionClickListener::onClick enter",
+			                "this=", this, "dialog=", dialog, "which=", which);
 			// disconnect and close this activity
 			application.getControl().getManager().disconnect();
 			MainActivity.this.finish();
-			Log.v(TAG,
-			        "MainActivity::CancelConnectionClickListener::onClick exit");
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::CancelConnectionClickListener::onClick exit");
 		}
 
 	}

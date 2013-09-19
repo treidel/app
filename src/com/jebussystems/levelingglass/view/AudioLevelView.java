@@ -14,10 +14,11 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.util.AttributeSet;
-import android.util.Log;
+
 import android.view.View;
 
 import com.jebussystems.levelingglass.R;
+import com.jebussystems.levelingglass.util.LogWrapper;
 
 public class AudioLevelView extends View
 {
@@ -92,8 +93,8 @@ public class AudioLevelView extends View
 	{
 		super(context, attrs);
 
-		Log.v(TAG, "AudioLevelView::AudioLevelView enter context=" + context
-		        + " attrs=" + attrs);
+		LogWrapper.v(TAG, "AudioLevelView::AudioLevelView enter", "this=",
+		        this, "context=", context, "attrs=", attrs);
 
 		// initialize our attributes using the info from the attribute set
 		TypedArray a = context.getTheme().obtainStyledAttributes(attrs,
@@ -114,7 +115,8 @@ public class AudioLevelView extends View
 			this.ceiling = a.getInt(R.styleable.AudioLevel_ceiling,
 			        DEFAULT_CEILING);
 			this.ok = a.getInt(R.styleable.AudioLevel_ok, DEFAULT_CEILING);
-			this.warning = a.getInt(R.styleable.AudioLevel_warning, DEFAULT_CEILING);
+			this.warning = a.getInt(R.styleable.AudioLevel_warning,
+			        DEFAULT_CEILING);
 			this.level = a
 			        .getFloat(R.styleable.AudioLevel_level, DEFAULT_LEVEL);
 			this.hold = a.getFloat(R.styleable.AudioLevel_hold, DEFAULT_LEVEL);
@@ -150,7 +152,7 @@ public class AudioLevelView extends View
 			a.recycle();
 		}
 
-		Log.v(TAG, "AudioLevelView::AudioLevelView exit");
+		LogWrapper.v(TAG, "AudioLevelView::AudioLevelView exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -159,7 +161,8 @@ public class AudioLevelView extends View
 
 	public void setLevel(float level)
 	{
-		Log.v(TAG, "AudioLevelView::setLevel enter level=" + level);
+		LogWrapper.v(TAG, "AudioLevelView::setLevel enter", "this=", this,
+		        "level=", level);
 		if (this.level != level)
 		{
 			// set the level
@@ -169,7 +172,7 @@ public class AudioLevelView extends View
 			// redraw
 			invalidate();
 		}
-		Log.v(TAG, "AudioLevelView::setLevel exit");
+		LogWrapper.v(TAG, "AudioLevelView::setLevel exit");
 	}
 
 	public float getLevel()
@@ -179,7 +182,8 @@ public class AudioLevelView extends View
 
 	public void setHold(Float hold)
 	{
-		Log.v(TAG, "AudioLevelView::setHold enter hold=" + hold);
+		LogWrapper.v(TAG, "AudioLevelView::setHold enter", "this=", this,
+		        "hold=", hold);
 		if (this.hold != hold)
 		{
 			// set the level
@@ -189,7 +193,7 @@ public class AudioLevelView extends View
 			// redraw
 			invalidate();
 		}
-		Log.v(TAG, "AudioLevelView::setHold exit");
+		LogWrapper.v(TAG, "AudioLevelView::setHold exit");
 	}
 
 	public Float getHold()
@@ -224,9 +228,9 @@ public class AudioLevelView extends View
 	@Override
 	public void onSizeChanged(int width, int height, int oldwidth, int oldheight)
 	{
-		Log.v(TAG, "AudioLevelView::onSizeChanged enter width=" + width
-		        + " height=" + height + " oldwidth=" + oldwidth + " oldheight="
-		        + oldheight);
+		LogWrapper.v(TAG, "AudioLevelView::onSizeChanged enter", "this=", this,
+		        "width=", width, "height=", height, "oldwidth=", oldwidth,
+		        "oldheight=" + oldheight);
 		// calculate the offsets
 		int xOffset = getPaddingLeft() + 5;
 		int yOffset = getPaddingTop();
@@ -288,13 +292,14 @@ public class AudioLevelView extends View
 		// calculate the drawing rects
 		updateDynamicValues();
 
-		Log.v(TAG, "AudioLevelView::onSizeChanged exit");
+		LogWrapper.v(TAG, "AudioLevelView::onSizeChanged exit");
 	}
 
 	@Override
 	protected void onDraw(Canvas canvas)
 	{
-		Log.v(TAG, "AudioLevelView::onDraw enter canvas=" + canvas);
+		LogWrapper.v(TAG, "AudioLevelView::onDraw enter", "this=", this,
+		        "canvas=", canvas);
 		// call the super class
 		super.onDraw(canvas);
 		// draw the error rect first then the warning rect then the ok rect in
@@ -314,7 +319,7 @@ public class AudioLevelView extends View
 		{
 			canvas.drawText(label.text, label.x, label.y, this.textPaint);
 		}
-		Log.v(TAG, "AudioLevelView::onDraw exit");
+		LogWrapper.v(TAG, "AudioLevelView::onDraw exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////

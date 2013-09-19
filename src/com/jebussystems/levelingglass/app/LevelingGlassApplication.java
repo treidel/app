@@ -9,10 +9,10 @@ import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import com.jebussystems.levelingglass.control.ControlV1;
 import com.jebussystems.levelingglass.control.MeterConfig;
+import com.jebussystems.levelingglass.util.LogWrapper;
 
 import flexjson.JSONDeserializer;
 import flexjson.JSONSerializer;
@@ -55,7 +55,8 @@ public class LevelingGlassApplication extends Application
 	@Override
 	public void onCreate()
 	{
-		Log.v(TAG, "LevelingGlassApplication::onCreate enter");
+		LogWrapper.v(TAG, "LevelingGlassApplication::onCreate enter", "this=",
+		        this);
 
 		// create the preferences object
 		this.preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
@@ -63,19 +64,19 @@ public class LevelingGlassApplication extends Application
 		String address = preferences.getString(DEVICE_KEY, null);
 		if (null != address)
 		{
-			Log.d(TAG, "found existing bluetooth device=" + address);
+			LogWrapper.d(TAG, "found existing bluetooth device=", address);
 			BluetoothDevice device = BluetoothAdapter.getDefaultAdapter()
 			        .getRemoteDevice(address);
 			// make sure the device is still paired
 			if (BluetoothDevice.BOND_BONDED != device.getBondState())
 			{
-				Log.d(TAG, "device=" + device
-				        + " is no longer paired, ignoring");
+				LogWrapper.d(TAG, "device=", device,
+				        " is no longer paired, ignoring");
 			}
 			else
 			{
-				Log.d(TAG, "existing bluetooth device=" + address
-				        + " still paired");
+				LogWrapper.d(TAG, "existing bluetooth device=", address,
+				        " still paired");
 				// keep it
 				this.device = device;
 			}
@@ -88,7 +89,7 @@ public class LevelingGlassApplication extends Application
 			// deserialize the meter config
 			MeterConfig config = meterConfigDeserializer.deserialize(channel);
 
-			Log.d(TAG, "found channel=" + config.getChannel());
+			LogWrapper.d(TAG, "found channel=", config.getChannel());
 
 			// put the level in the lookup
 			this.meterConfigMap.put(config.getChannel(), config);
@@ -98,7 +99,7 @@ public class LevelingGlassApplication extends Application
 		// set channel/level data
 		this.control.notifyLevelConfigChange();
 
-		Log.v(TAG, "LevelingGlassApplication::onCreate exit");
+		LogWrapper.v(TAG, "LevelingGlassApplication::onCreate exit");
 	}
 
 	public ControlV1 getControl()
@@ -113,7 +114,8 @@ public class LevelingGlassApplication extends Application
 
 	public void setDevice(BluetoothDevice device)
 	{
-		Log.v(TAG, "LevelingGlassApplication::setDevice enter device=" + device);
+		LogWrapper.v(TAG, "LevelingGlassApplication::setDevice enter", "this=",
+		        this, "device=", device);
 
 		// store the device
 		this.device = device;
@@ -129,7 +131,7 @@ public class LevelingGlassApplication extends Application
 		}
 		editor.commit();
 
-		Log.v(TAG, "LevelingGlassApplication::setDevice exit");
+		LogWrapper.v(TAG, "LevelingGlassApplication::setDevice exit");
 	}
 
 	public Set<Integer> getChannelSet()
@@ -144,9 +146,9 @@ public class LevelingGlassApplication extends Application
 
 	public void setConfigForChannel(MeterConfig config)
 	{
-		Log.v(TAG,
-		        "LevelingGlassApplication::setConfigForChannel enter config="
-		                + config);
+		LogWrapper.v(TAG,
+		        "LevelingGlassApplication::setConfigForChannel enter", "this=",
+		        this, "config=", config);
 
 		// store the config
 		this.meterConfigMap.put(config.getChannel(), config);
@@ -162,7 +164,7 @@ public class LevelingGlassApplication extends Application
 		editor.putStringSet(LEVELS_KEY, channels);
 		editor.commit();
 
-		Log.v(TAG, "LevelingGlassApplication::setLevelForChannel exit");
+		LogWrapper.v(TAG, "LevelingGlassApplication::setLevelForChannel exit");
 	}
 	// /////////////////////////////////////////////////////////////////////////
 	// protected methods
