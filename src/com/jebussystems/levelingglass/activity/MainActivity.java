@@ -74,16 +74,23 @@ public class MainActivity extends Activity
 		// create the listener
 		this.listener = new ControlEventListener();
 
-		// start a connection to the device
+		// attempt start a connection to the device
 		BluetoothDevice device = application.getDevice();
-		application.getControl().getManager().connect(device);
+		if (false == application.getControl().getManager().connect(device))
+		{
+			// the device is no longer valid so abort this activity and go back to the device 
+			// selection activity
+			finish();
+		}
+		else
+		{
 
-		// setup the layout
-		setContentView(R.layout.main);
+			// setup the layout
+			setContentView(R.layout.main);
 
-		// find the layout
-		this.layout = (ViewGroup) findViewById(R.id.main_layout);
-
+			// find the layout
+			this.layout = (ViewGroup) findViewById(R.id.main_layout);
+		}
 		LogWrapper.v(TAG, "MainActivity::onCreate exit");
 
 	}

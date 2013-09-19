@@ -14,8 +14,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.os.ParcelUuid;
-import android.util.Log;
 
+import com.jebussystems.levelingglass.util.LogWrapper;
 import com.jebussystems.levelingglass.util.StateMachine;
 
 public class SPPManager implements SPPConnection.Listener,
@@ -98,13 +98,13 @@ public class SPPManager implements SPPConnection.Listener,
 
 	public SPPManager(SPPMessageHandler messageHandler)
 	{
-		Log.v(TAG, "SPPManager::SPPManager enter messageHandler="
-		        + messageHandler);
+		LogWrapper.v(TAG, "SPPManager::SPPManager enter", "this=", this,
+		        "messageHandler=", messageHandler);
 		// store the message handler
 		this.messageHandler = messageHandler;
 		// add ourselves as a state machine listener
 		this.stateMachineInstance.setListener(this);
-		Log.v(TAG, "SPPManager::SPPManager exit");
+		LogWrapper.v(TAG, "SPPManager::SPPManager exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -113,79 +113,88 @@ public class SPPManager implements SPPConnection.Listener,
 
 	public boolean connect(BluetoothDevice device)
 	{
-		Log.v(TAG, "SPPManager::connect enter device=" + device);
+		LogWrapper.v(TAG, "SPPManager::connect enter", "this=", this,
+		        "device=", device);
+
+		// result flag
+		boolean result = false;
 
 		// validate that this is a peer'ed device
-		if (false == BluetoothAdapter.getDefaultAdapter().getBondedDevices()
+		if (true == BluetoothAdapter.getDefaultAdapter().getBondedDevices()
 		        .contains(device))
 		{
-			Log.w(TAG, "device=" + device.getAddress() + " is not paired");
-			return false;
+			// make sure the peer supports our service
+			if (true == checkDeviceForCompatibility(device))
+			{
+				// if we already have a device disconnect
+				if (null != this.device)
+				{
+					disconnect();
+				}
+				// send the connection message
+				ConnectMessage message = new ConnectMessage(device);
+				this.executor.execute(message);
+				// store the device
+				this.device = device;
+				// success
+				result = true;
+			}
+			else
+			{
+				LogWrapper.w(TAG, "SPP service is not supported on device=",
+				        device.getAddress());
+			}
 		}
-
-		// make sure the peer supports our service
-		if (false == checkDeviceForCompatibility(device))
+		else
 		{
-			Log.w(TAG,
-			        "SPP service is not supported on device="
-			                + device.getAddress());
-			return false;
+			LogWrapper.w(TAG, "device=", device.getAddress(), "is not paired");
 		}
-		// if we already have a device disconnect
-		if (null != this.device)
-		{
-			disconnect();
-		}
-		// send the connection message
-		ConnectMessage message = new ConnectMessage(device);
-		this.executor.execute(message);
-		// store the device
-		this.device = device;
 
 		// returning true means we'll at least try to connect
-		Log.v(TAG, "SPPManager::connect exit");
-		return true;
-
+		LogWrapper.v(TAG, "SPPManager::connect exit", "result=", result);
+		return result;
 	}
 
 	public void disconnect()
 	{
-		Log.v(TAG, "SPPManager::disconnect enter");
+		LogWrapper.v(TAG, "SPPManager::disconnect enter", "this=", this);
 		// send the disconnect message
 		DisconnectMessage message = new DisconnectMessage();
 		this.executor.execute(message);
 		// forget about the device
 		this.device = null;
-		Log.v(TAG, "SPPManager::disconnect exit");
+		LogWrapper.v(TAG, "SPPManager::disconnect exit");
 	}
 
 	public void sendRequest(ByteBuffer request)
 	{
-		Log.v(TAG, "SPPManager::sendRequest enter request=" + request);
+		LogWrapper.v(TAG, "SPPManager::sendRequest enter", "this=", this,
+		        "request=", request);
 		SendRequestMessage message = new SendRequestMessage(request);
 		this.executor.execute(message);
-		Log.v(TAG, "SPPManager::sendRequest exit");
+		LogWrapper.v(TAG, "SPPManager::sendRequest exit");
 	}
 
 	public void addSPPStateListener(SPPStateListener listener)
 	{
-		Log.v(TAG, "SPPManager::addSPPStateListener enter listener=" + listener);
+		LogWrapper.v(TAG, "SPPManager::addSPPStateListener enter", "this=",
+		        this, "listener=", listener);
 		synchronized (this.listeners)
 		{
 			this.listeners.add(listener);
 		}
-		Log.v(TAG, "SPPManager::addSPPStateListener exit");
+		LogWrapper.v(TAG, "SPPManager::addSPPStateListener exit");
 	}
 
 	public void removeSPPStateListener(SPPStateListener listener)
 	{
-		Log.v(TAG, "SPPManager::removeSPPStateListener enter listener="
-		        + listener);
+		LogWrapper.v(TAG, "SPPManager::removeSPPStateListener enter", "this=",
+		        this, "listener=", listener);
 		synchronized (this.listeners)
 		{
 			this.listeners.remove(listener);
 		}
-		Log.v(TAG, "SPPManager::removeSPPStateListener exit");
+		LogWrapper.v(TAG, "SPPManager::removeSPPStateListener exit");
 	}
 
 	public SPPState getState()
@@ -200,20 +209,22 @@ public class SPPManager implements SPPConnection.Listener,
 	@Override
 	public void connected(SPPConnection connection)
 	{
-		Log.v(TAG, "SPPManager::connected enter connection=" + connection);
+		LogWrapper.v(TAG, "SPPManager::connected enter", "this=", this,
+		        "connection=", connection);
 		NotifyConnectedMessage message = new NotifyConnectedMessage(connection);
 		this.executor.execute(message);
-		Log.v(TAG, "SPPManager::connected exit");
+		LogWrapper.v(TAG, "SPPManager::connected exit");
 	}
 
 	@Override
 	public void disconnected(SPPConnection connection)
 	{
-		Log.v(TAG, "SPPManager::disconnected enter connection=" + connection);
+		LogWrapper.v(TAG, "SPPManager::disconnected enter connection="
+		        + connection);
 		NotifyDisconnectedMessage message = new NotifyDisconnectedMessage(
 		        connection);
 		this.executor.execute(message);
-		Log.v(TAG, "SPPManager::disconnected exit");
+		LogWrapper.v(TAG, "SPPManager::disconnected exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -223,7 +234,8 @@ public class SPPManager implements SPPConnection.Listener,
 	@Override
 	public void notifyStateChange(SPPState state)
 	{
-		Log.v(TAG, "SPPManager::notifyStateChange enter state=" + state);
+		LogWrapper.v(TAG, "SPPManager::notifyStateChange enter", "this=", this,
+		        "state=", state);
 		synchronized (listeners)
 		{
 			for (SPPStateListener listener : listeners)
@@ -231,7 +243,7 @@ public class SPPManager implements SPPConnection.Listener,
 				listener.notifySPPStateChanged(state);
 			}
 		}
-		Log.v(TAG, "SPPManager::notifyStateChange exit");
+		LogWrapper.v(TAG, "SPPManager::notifyStateChange exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -273,10 +285,11 @@ public class SPPManager implements SPPConnection.Listener,
 
 		public void run()
 		{
-			Log.v(TAG, "SPPManager::ConnectMessage::run enter device=" + device);
+			LogWrapper.v(TAG, "SPPManager::ConnectMessage::run enter", "this=",
+			        this, "device=", device);
 			// fire the state machine event
 			stateMachineInstance.evaluate(Event.CONNECT, device);
-			Log.v(TAG, "SPPManager::ConnectMessage::run exit");
+			LogWrapper.v(TAG, "SPPManager::ConnectMessage::run exit");
 		}
 	}
 
@@ -284,10 +297,10 @@ public class SPPManager implements SPPConnection.Listener,
 	{
 		public void run()
 		{
-			Log.v(TAG, "SPPManager::DisconnectMessage::run enter");
+			LogWrapper.v(TAG, "SPPManager::DisconnectMessage::run enter");
 			// run the state machine
 			stateMachineInstance.evaluate(Event.DISCONNECT, null);
-			Log.v(TAG, "SPPManager::DisconnectMessage::run exit");
+			LogWrapper.v(TAG, "SPPManager::DisconnectMessage::run exit");
 		}
 	}
 
@@ -302,19 +315,19 @@ public class SPPManager implements SPPConnection.Listener,
 
 		public void run()
 		{
-			Log.v(TAG,
+			LogWrapper.v(TAG,
 			        "SPPManager::NotifyConnectedMessage::run enter connection="
 			                + connection);
 			// ignore if this is stale
 			if (this.connection != SPPManager.this.connection)
 			{
-				Log.w(TAG, "connect: ignoring stale connection for");
+				LogWrapper.w(TAG, "connect: ignoring stale connection for");
 				this.connection.close();
 				return;
 			}
 			// run the state machine
 			stateMachineInstance.evaluate(Event.NOTIFY_CONNECTED, connection);
-			Log.v(TAG, "SPPManager::NotifyConnectedMessage::run exit");
+			LogWrapper.v(TAG, "SPPManager::NotifyConnectedMessage::run exit");
 		}
 	}
 
@@ -329,13 +342,13 @@ public class SPPManager implements SPPConnection.Listener,
 
 		public void run()
 		{
-			Log.v(TAG,
+			LogWrapper.v(TAG,
 			        "SPPManager::NotifyDisconnectedMessage::run enter connection="
 			                + connection);
 			// ignore if this is stale
 			if (this.connection != SPPManager.this.connection)
 			{
-				Log.w(TAG, "disconnect: ignoring stale connection");
+				LogWrapper.w(TAG, "disconnect: ignoring stale connection");
 				this.connection.close();
 				return;
 			}
@@ -343,7 +356,8 @@ public class SPPManager implements SPPConnection.Listener,
 			stateMachineInstance.evaluate(Event.NOTIFY_DISCONNECTED,
 			        connection.getDevice());
 
-			Log.v(TAG, "SPPManager::NotifyDisconnectedMessage::run exit");
+			LogWrapper
+			        .v(TAG, "SPPManager::NotifyDisconnectedMessage::run exit");
 		}
 	}
 
@@ -358,11 +372,12 @@ public class SPPManager implements SPPConnection.Listener,
 
 		public void run()
 		{
-			Log.v(TAG, "SPPManager::SendRequestMessage::run enter message="
-			        + message);
+			LogWrapper.v(TAG,
+			        "SPPManager::SendRequestMessage::run enter message="
+			                + message);
 			// run the state machine
 			stateMachineInstance.evaluate(Event.MESSAGE, message);
-			Log.v(TAG, "SPPManager::SendRequestMessage::run exit");
+			LogWrapper.v(TAG, "SPPManager::SendRequestMessage::run exit");
 		}
 	}
 
@@ -378,10 +393,10 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public void run()
 		{
-			Log.v(TAG, "SPPManager::ReconnectMessage::run enter device="
+			LogWrapper.v(TAG, "SPPManager::ReconnectMessage::run enter device="
 			        + device);
 			stateMachineInstance.evaluate(Event.TIMER, device);
-			Log.v(TAG, "SPPManager::ReconnectMessage::run exit");
+			LogWrapper.v(TAG, "SPPManager::ReconnectMessage::run exit");
 		}
 	}
 
@@ -391,8 +406,8 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG, "SPPManager::ConnectHandler::handleEvent enter object="
-			        + object + " data=" + data);
+			LogWrapper.v(TAG, "SPPManager::ConnectHandler::handleEvent enter",
+			        "this=", this, "object=", object, "data=", data);
 			try
 			{
 				// create the socket
@@ -405,14 +420,13 @@ public class SPPManager implements SPPConnection.Listener,
 			}
 			catch (IOException e)
 			{
-				Log.e(TAG,
-				        "IOException when creating socket, reason="
-				                + e.getMessage());
+				LogWrapper.e(TAG, "IOException when creating socket, reason="
+				        + e.getMessage());
 				return null;
 			}
 
 			// now we're connecting
-			Log.v(TAG, "SPPManager::ConnectHandler::handleEvent exit");
+			LogWrapper.v(TAG, "SPPManager::ConnectHandler::handleEvent exit");
 			return SPPState.CONNECTING;
 		}
 	}
@@ -423,15 +437,16 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG,
-			        "SPPManager::ForceDisconnectHandler::handleEvent enter object="
-			                + object + " data=" + data);
+			LogWrapper.v(TAG,
+			        "SPPManager::ForceDisconnectHandler::handleEvent enter",
+			        "this=", this, "object=", object, "data=", data);
 			// close the connection
 			object.connection.close();
 			object.connection = null;
 
 			// now we're disconnected
-			Log.v(TAG, "SPPManager::ForceDisconnectHandler::handleEvent exit");
+			LogWrapper.v(TAG,
+			        "SPPManager::ForceDisconnectHandler::handleEvent exit");
 			return SPPState.DISCONNECTED;
 		}
 	}
@@ -442,13 +457,14 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG,
-			        "SPPManager::NotifyConnectedHandler::handleEvent enter object="
-			                + object + " data=" + data);
+			LogWrapper.v(TAG,
+			        "SPPManager::NotifyConnectedHandler::handleEvent enter",
+			        "this=", this, "object=", object, "data=", data);
 			// store the connection
 			object.connection = (SPPConnection) data;
 			// now we're connected
-			Log.v(TAG, "SPPManager::NotifyConnectedHandler::handleEvent exit");
+			LogWrapper.v(TAG,
+			        "SPPManager::NotifyConnectedHandler::handleEvent exit");
 			return SPPState.CONNECTED;
 		}
 	}
@@ -459,9 +475,9 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG,
-			        "SPPManager::NotifyDisconnectedHandler::handleEvent enter object="
-			                + object + " data=" + data);
+			LogWrapper.v(TAG,
+			        "SPPManager::NotifyDisconnectedHandler::handleEvent enter",
+			        "this=", this, "object=", object, "data=", data);
 			// close the connection
 			object.connection.close();
 			object.connection = null;
@@ -471,7 +487,7 @@ public class SPPManager implements SPPConnection.Listener,
 			object.timerHandler = object.executor.schedule(message, 20,
 			        TimeUnit.SECONDS);
 			// now we're reconnecting
-			Log.v(TAG,
+			LogWrapper.v(TAG,
 			        "SPPManager::NotifyDisconnectedHandler::handleEvent exit");
 			return SPPState.RECONNECTING;
 		}
@@ -483,9 +499,9 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG,
-			        "SPPManager::NotifyDisconnectedHandler::handleEvent enter object="
-			                + object + " data=" + data);
+			LogWrapper.v(TAG,
+			        "SPPManager::ReconnectHandler::handleEvent enter", "this=",
+			        this, "object=", object, "data=", data);
 			// no longer need the timer handle
 			object.timerHandler = null;
 			try
@@ -499,13 +515,12 @@ public class SPPManager implements SPPConnection.Listener,
 			}
 			catch (IOException e)
 			{
-				Log.e(TAG,
-				        "IOException when creating socket, reason="
-				                + e.getMessage());
+				LogWrapper.e(TAG, "IOException when creating socket, reason="
+				        + e.getMessage());
 				return SPPState.DISCONNECTED;
 			}
 			// now connecting
-			Log.v(TAG,
+			LogWrapper.v(TAG,
 			        "SPPManager::NotifyDisconnectedHandler::handleEvent exit");
 			return SPPState.CONNECTING;
 		}
@@ -517,15 +532,16 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG,
-			        "SPPManager::CancelReconnectHandler::handleEvent enter object="
-			                + object + " data=" + data);
+			LogWrapper.v(TAG,
+			        "SPPManager::CancelReconnectHandler::handleEvent enter",
+			        "this=", this, "object=", object, "data=", data);
 			// cancel the timer
 			object.timerHandler.cancel(false);
 			object.timerHandler = null;
 
 			// now disconnected
-			Log.v(TAG, "SPPManager::CancelReconnectHandler::handleEvent exit");
+			LogWrapper.v(TAG,
+			        "SPPManager::CancelReconnectHandler::handleEvent exit");
 			return SPPState.DISCONNECTED;
 		}
 	}
@@ -536,11 +552,11 @@ public class SPPManager implements SPPConnection.Listener,
 		@Override
 		public SPPState handleEvent(SPPManager object, Object data)
 		{
-			Log.v(TAG, "SPPManager::MessageHandler::handleEvent enter object="
-			        + object + " data=" + data);
+			LogWrapper.v(TAG, "SPPManager::MessageHandler::handleEvent enter",
+			        "this=", this, "object=", object, "data=", data);
 			// assume we don't want to change state
 			SPPState result = null;
-			
+
 			try
 			{
 				object.connection.sendRequest((ByteBuffer) data);
@@ -552,7 +568,8 @@ public class SPPManager implements SPPConnection.Listener,
 				object.connection = null;
 				result = SPPState.DISCONNECTED;
 			}
-			Log.v(TAG, "SPPManager::MessageHandler::handleEvent exit result=" + result);
+			LogWrapper.v(TAG, "SPPManager::MessageHandler::handleEvent exit",
+			        "result=", result);
 			return null;
 		}
 	}

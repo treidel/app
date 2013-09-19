@@ -5,9 +5,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import com.jebussystems.levelingglass.util.LogWrapper;
+
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.util.Log;
 
 public class SPPConnection
 {
@@ -19,10 +20,11 @@ public class SPPConnection
 	// /////////////////////////////////////////////////////////////////////////
 	// types
 	// /////////////////////////////////////////////////////////////////////////
-	
+
 	public interface Listener
 	{
 		void connected(SPPConnection connection);
+
 		void disconnected(SPPConnection connection);
 	}
 
@@ -46,30 +48,32 @@ public class SPPConnection
 	// /////////////////////////////////////////////////////////////////////////
 
 	public SPPConnection(Listener listener, BluetoothSocket socket,
-	        SPPMessageHandler messageHandler) 
+	        SPPMessageHandler messageHandler)
 	{
-		Log.v(TAG, "SPPConnection::SPPConnection enter listener=" + listener + " socket=" + socket + " messagHandler=" + messageHandler);
-		
+		LogWrapper.v(TAG, "SPPConnection::SPPConnection enter", "this=", this,
+		        "listener=", listener, "socket=", socket, "messagHandler=",
+		        messageHandler);
+
 		// store data and allocate the channels
 		this.listener = listener;
 		this.socket = socket;
 		try
-        {
-	        this.writeStream = new DataOutputStream(socket.getOutputStream());
+		{
+			this.writeStream = new DataOutputStream(socket.getOutputStream());
 			this.readStream = new DataInputStream(socket.getInputStream());
-        }
-        catch (IOException e)
-        {
-        	// never expect this
-        	Log.wtf(TAG, "IOException, reason=" + e.getMessage());
-        	throw new IllegalStateException();
-        }
+		}
+		catch (IOException e)
+		{
+			// never expect this
+			LogWrapper.wtf(TAG, "IOException, reason=", e.getMessage());
+			throw new IllegalStateException();
+		}
 		this.messageHandler = messageHandler;
 		// spawn a thread to do the connection and read from the channel
 		this.thread = new Thread(new ReadThread());
 		this.thread.start();
-		
-		Log.v(TAG, "SPPConnection::SPPConnection exit");
+
+		LogWrapper.v(TAG, "SPPConnection::SPPConnection exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -78,21 +82,22 @@ public class SPPConnection
 
 	public void sendRequest(ByteBuffer request) throws IOException
 	{
-		Log.v(TAG, "SPPConnection::sendRequest enter request=" + request);
-		
+		LogWrapper.v(TAG, "SPPConnection::sendRequest enter", "this=", this,
+		        "request=", request);
+
 		// write the size of the request
 		this.writeStream.writeShort(request.capacity());
 		// write the request
 		this.writeStream.write(request.array());
 		// flush
 		this.writeStream.flush();
-		
-		Log.v(TAG, "SPPConnection::sendRequest exit");
+
+		LogWrapper.v(TAG, "SPPConnection::sendRequest exit");
 	}
 
 	public void close()
 	{
-		Log.v(TAG, "SPPConnection::sendRequest enter close");
+		LogWrapper.v(TAG, "SPPConnection::close enter", "this=", this);
 		// close the socket
 		try
 		{
@@ -100,7 +105,7 @@ public class SPPConnection
 		}
 		catch (IOException e)
 		{
-			Log.e(TAG, e.getMessage());
+			LogWrapper.e(TAG, e.getMessage());
 		}
 		// wait for the thread to die
 		try
@@ -109,11 +114,12 @@ public class SPPConnection
 		}
 		catch (InterruptedException e)
 		{
-			Log.d(TAG, "thread interrupted in join, message=" + e.getMessage());
+			LogWrapper.d(TAG, "thread interrupted in join, message=",
+			        e.getMessage());
 		}
-		Log.v(TAG, "SPPConnection::close enter close");
+		LogWrapper.v(TAG, "SPPConnection::close exit");
 	}
-	
+
 	public BluetoothDevice getDevice()
 	{
 		return socket.getRemoteDevice();
@@ -131,41 +137,42 @@ public class SPPConnection
 	{
 		public void run()
 		{
-			Log.v(TAG, "SPPConnection::ReadThread::run enter");
-			
+			LogWrapper.v(TAG, "SPPConnection::ReadThread::run enter", "this=",
+			        this);
+
 			try
 			{
 				// actually try to connect
 				socket.connect();
-				
-				Log.d(TAG, "connected to device=" + socket.getRemoteDevice());
-				
+
+				LogWrapper.d(TAG, "connected to device=",
+				        socket.getRemoteDevice());
+
 				// notify the listener
 				listener.connected(SPPConnection.this);
-				
+
 				// read messages forever
 				while (true)
 				{
-    				// read the size of the message
-    				short length = readStream.readShort();
-    				// allocate a buffer and read the message in
-    				ByteBuffer buffer = ByteBuffer.allocate(length);
-    				readStream.read(buffer.array(), 0, length);
-    				// call the handler
-    				messageHandler.handleSPPMessage(buffer);
+					// read the size of the message
+					short length = readStream.readShort();
+					// allocate a buffer and read the message in
+					ByteBuffer buffer = ByteBuffer.allocate(length);
+					readStream.read(buffer.array(), 0, length);
+					// call the handler
+					messageHandler.handleSPPMessage(buffer);
 				}
 			}
 			catch (IOException e)
 			{
-				Log.w(TAG,
-				        "IO exception from socket, message=" + e.getMessage());
+				LogWrapper.w(TAG, "IO exception from socket, message=",
+				        e.getMessage());
 				// notify the listener we've disconnected
 				// this will result in the socket being closed in a different
 				// thread
 				listener.disconnected(SPPConnection.this);
 			}
-			Log.v(TAG, "SPPConnection::ReadThread::run exit");
+			LogWrapper.v(TAG, "SPPConnection::ReadThread::run exit");
 		}
 	}
-
 }
