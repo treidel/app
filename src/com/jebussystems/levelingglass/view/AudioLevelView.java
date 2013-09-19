@@ -31,20 +31,21 @@ public class AudioLevelView extends View
 	private static final int DEFAULT_FLOOR = -24;
 	private static final int DEFAULT_LEVEL = DEFAULT_FLOOR;
 	private static final int DEFAULT_NORMAL_COLOR = Color.GREEN;
+	private static final int DEFAULT_WARNING_COLOR = Color.YELLOW;
 	private static final int DEFAULT_ERROR_COLOR = Color.RED;
 	private static final int DEFAULT_HOLD_COLOR = Color.GRAY;
 	private static final int DEFAULT_MARK_COLOR = Color.DKGRAY;
- 
+
 	// /////////////////////////////////////////////////////////////////////////
 	// types
 	// /////////////////////////////////////////////////////////////////////////
-	
+
 	private static class Label
 	{
 		public int x;
 		public int y;
 		public String text;
-		
+
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -54,12 +55,15 @@ public class AudioLevelView extends View
 	// variables populated by attribute or at runtime
 	private final int floor;
 	private final int ceiling;
+	private final int ok;
+	private final int warning;
 	private final Set<Integer> marks = new HashSet<Integer>();
 	private float level;
 	private Float hold;
 
 	// internal paint variables
 	private Paint okPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+	private Paint warningPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private Paint errorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private Paint holdPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private Paint markPaint = new Paint();
@@ -68,11 +72,13 @@ public class AudioLevelView extends View
 	// internally calculated variables populated by onSizeChanged() whenever the
 	// view size changes
 	private Rect okRange;
+	private Rect warningRange;
 	private Rect errorRange;
 	private Rect holdRange;
 
 	// internally calculated variables used by the paint routine
 	private final Rect okRect = new Rect();
+	private final Rect warningRect = new Rect();
 	private final Rect errorRect = new Rect();
 	private final Rect holdRect = new Rect();
 	private final Collection<Path> markPaths = new LinkedList<Path>();
@@ -96,6 +102,8 @@ public class AudioLevelView extends View
 		{
 			int okColor = a.getColor(R.styleable.AudioLevel_ok_color,
 			        DEFAULT_NORMAL_COLOR);
+			int warningColor = a.getColor(R.styleable.AudioLevel_warning_color,
+			        DEFAULT_WARNING_COLOR);
 			int errorColor = a.getColor(R.styleable.AudioLevel_error_color,
 			        DEFAULT_ERROR_COLOR);
 			int holdColor = a.getColor(R.styleable.AudioLevel_hold_color,
@@ -105,6 +113,8 @@ public class AudioLevelView extends View
 			this.floor = a.getInt(R.styleable.AudioLevel_floor, DEFAULT_FLOOR);
 			this.ceiling = a.getInt(R.styleable.AudioLevel_ceiling,
 			        DEFAULT_CEILING);
+			this.ok = a.getInt(R.styleable.AudioLevel_ok, DEFAULT_CEILING);
+			this.warning = a.getInt(R.styleable.AudioLevel_warning, DEFAULT_CEILING);
 			this.level = a
 			        .getFloat(R.styleable.AudioLevel_level, DEFAULT_LEVEL);
 			this.hold = a.getFloat(R.styleable.AudioLevel_hold, DEFAULT_LEVEL);
@@ -122,6 +132,7 @@ public class AudioLevelView extends View
 
 			// set the paint to use
 			this.okPaint.setColor(okColor);
+			this.warningPaint.setColor(warningColor);
 			this.errorPaint.setColor(errorColor);
 			this.holdPaint.setColor(holdColor);
 			this.markPaint.setColor(markColor);
@@ -132,11 +143,11 @@ public class AudioLevelView extends View
 			this.textPaint.setStyle(Paint.Style.STROKE);
 			this.textPaint.setStrokeWidth(1);
 			this.textPaint.setTextSize(16);
-			this.textPaint.setTextAlign(Paint.Align.CENTER); 
+			this.textPaint.setTextAlign(Paint.Align.CENTER);
 		}
 		finally
 		{
-			a.recycle(); 
+			a.recycle();
 		}
 
 		Log.v(TAG, "AudioLevelView::AudioLevelView exit");
@@ -196,6 +207,16 @@ public class AudioLevelView extends View
 		return floor;
 	}
 
+	public int getOK()
+	{
+		return ok;
+	}
+
+	public int getWarning()
+	{
+		return warning;
+	}
+
 	// /////////////////////////////////////////////////////////////////////////
 	// View overrides
 	// /////////////////////////////////////////////////////////////////////////
@@ -216,7 +237,9 @@ public class AudioLevelView extends View
 		int span = getCeiling() - getFloor();
 
 		// calculate the maximum widths of each band
-		int okRange = (int) (Math.abs(getFloor()) * (float) xRange / (float) span);
+		int okRange = (int) (((float) (getOK() - getFloor()) * (float) xRange) / (float) span);
+		int warningRange = (int) (((float) (getWarning() - getOK()) * (float) xRange) / (float) span);
+		int errorRange = (int) (((float) (getCeiling() - getWarning()) * (float) xRange) / (float) span);
 
 		// calculate space for the marks + labels
 		int yMark = (int) ((float) yRange * 0.15);
@@ -228,8 +251,11 @@ public class AudioLevelView extends View
 		// calculate the ok range
 		this.okRange = new Rect(xOffset, yOffset, xOffset + okRange, yOffset
 		        + yMeter);
-		this.errorRange = new Rect(this.okRange.right, this.okRange.top,
-		        xOffset + xRange, this.okRange.bottom);
+		this.warningRange = new Rect(this.okRange.right, this.okRange.top,
+		        this.okRange.right + warningRange, this.okRange.bottom);
+		this.errorRange = new Rect(this.warningRange.right,
+		        this.warningRange.top, this.warningRange.right + errorRange,
+		        this.warningRange.bottom);
 		this.holdRange = new Rect(this.okRange.left, this.okRange.top,
 		        this.errorRange.right, this.okRange.bottom);
 
@@ -252,7 +278,8 @@ public class AudioLevelView extends View
 			// create the label
 			Label label = new Label();
 			label.x = markPosition;
-			label.y = yOffset + yMeter + yMark + yLabel + (int)(0.15f * this.textPaint.getTextSize());
+			label.y = yOffset + yMeter + yMark + yLabel
+			        + (int) (0.15f * this.textPaint.getTextSize());
 			label.text = String.valueOf(mark);
 			// add the label
 			this.labels.add(label);
@@ -270,12 +297,14 @@ public class AudioLevelView extends View
 		Log.v(TAG, "AudioLevelView::onDraw enter canvas=" + canvas);
 		// call the super class
 		super.onDraw(canvas);
-		// draw the error rect first so that the ok rect will draw over it if
-		// necessary
+		// draw the error rect first then the warning rect then the ok rect in
+		// to avoid
+		// overlap
 		canvas.drawRect(this.errorRect, this.errorPaint);
+		canvas.drawRect(this.warningRect, this.warningPaint);
 		canvas.drawRect(this.okRect, this.okPaint);
 		canvas.drawRect(this.holdRect, this.holdPaint);
-		// draw each mark 
+		// draw each mark
 		for (Path path : this.markPaths)
 		{
 			canvas.drawPath(path, this.markPaint);
@@ -305,13 +334,48 @@ public class AudioLevelView extends View
 		// figure out the range of possible levels
 		int span = getCeiling() - getFloor();
 
-		// see if we're above or below the zero level
-		if (getLevel() < 0f)
+		// see if we're in the error range, warning range or ok range
+		if (getLevel() > (float) getWarning())
 		{
-			// no error rectangle needed
+			// ok + warning are both full
+			this.warningRect.set(this.warningRange);
+			this.okRect.set(this.okRange);
+			// calculate the percent of pixels to draw
+			float percent = (getLevel() - (float) getWarning())
+			        / (float) (getCeiling() - getWarning());
+			// handle clipping
+			percent = Math.min(percent, 1.0f);
+			// calculate the number of pixels we need to draw
+			int pixels = (int) ((float) this.errorRange.width() * percent);
+			// size the drawing rectangle
+			this.errorRect.set(this.errorRange.left, this.errorRange.top,
+			        this.errorRange.left + pixels, this.errorRange.bottom);
+
+		}
+		else if (getLevel() > (float) getOK())
+		{
+			// ok is full, error is empty
+			this.okRect.set(this.okRange);
 			this.errorRect.setEmpty();
-			// // calculate the percent of pixels to draw
-			float percent = 1.0f - ((float) getLevel() / ((float) getFloor()));
+			// calculate the percent of pixels to draw
+			float percent = (getLevel() - (float) getOK())
+			        / (float) (getWarning() - getOK());
+			// handle clipping (shouldn't happen)
+			percent = Math.min(percent, 1.0f);
+			// calculate the number of pixels we need to draw
+			int pixels = (int) ((float) this.warningRange.width() * percent);
+			// size the drawing rectangle
+			this.warningRect.set(this.warningRange.left, this.warningRange.top,
+			        this.warningRange.left + pixels, this.warningRange.bottom);
+		}
+		else
+		{
+			// warning + error empty
+			this.warningRect.setEmpty();
+			this.errorRect.setEmpty();
+			// calculate the percent of pixels to draw
+			float percent = (getLevel() - (float) getFloor())
+			        / (float) (getOK() - getFloor());
 			// handle clipping
 			percent = Math.max(percent, 0.0f);
 			// calculate the number of pixels we need to draw
@@ -320,26 +384,12 @@ public class AudioLevelView extends View
 			this.okRect.set(this.okRange.left, this.okRange.top,
 			        this.okRange.left + pixels, this.okRange.bottom);
 		}
-		else
-		{
-			// normal rectangle is full
-			this.okRect.set(this.okRange);
-			// calculate the percent of pixels to draw
-			float percent = ((float) getLevel() / ((float) getCeiling()));
-			// handle clipping
-			percent = Math.min(percent, 1.0f);
-			// calculate the number of pixels we need to draw
-			int pixels = (int) ((float) this.errorRange.width() * percent);
 
-			// size the drawing rectangle
-			this.errorRect.set(this.errorRange.left, this.errorRange.top,
-			        this.errorRange.left + pixels, this.errorRange.bottom);
-		}
 		// if we have a hold then calculate where it should be placed
 		if (null != getHold())
 		{
 			// calculate the percentage point of the hold
-			float percent = (getHold() - getFloor()) / span;
+			float percent = (getHold() - getFloor()) / (float) span;
 			// handle clipping
 			percent = Math.min(percent, 1.0f);
 			percent = Math.max(percent, 0.0f);
