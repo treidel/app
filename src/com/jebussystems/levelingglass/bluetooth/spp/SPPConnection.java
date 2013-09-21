@@ -103,7 +103,7 @@ public class SPPConnection
 		        "request=", request);
 
 		// write the size of the request
-		this.writeStream.writeShort(request.capacity());
+		this.writeStream.writeShort(request.limit());
 		// write the request
 		this.writeStream.write(request.array());
 		// flush

@@ -105,7 +105,7 @@ public class MainActivity extends Activity
 		super.onStart();
 
 		// get the control object and add ourselves as a listener
-		ControlV1 control = application.getControl();
+		ControlV1 control = ControlV1.getInstance();
 		control.addListener(listener);
 
 		// refresh the dialog state
@@ -128,7 +128,7 @@ public class MainActivity extends Activity
 		super.onStop();
 
 		// get the control object and add ourselves as a listener
-		application.getControl().removeListener(listener);
+		ControlV1.getInstance().removeListener(listener);
 
 		LogWrapper.v(TAG, "MainActivity::onStop exit");
 	}
@@ -207,7 +207,7 @@ public class MainActivity extends Activity
 	private void updateLevelData()
 	{
 		// get the control object and add ourselves as a listener
-		ControlV1 control = application.getControl();
+		ControlV1 control = ControlV1.getInstance();
 		// query the level data from the control object
 		Map<Integer, LevelDataRecord> records = control.getLevelDataRecord();
 		if (null != records)
@@ -526,7 +526,7 @@ public class MainActivity extends Activity
 			application.setConfigForChannel(config);
 
 			// set the config
-			application.getControl().notifyLevelConfigChange();
+			ControlV1.getInstance().notifyLevelConfigChange();
 
 			// force a recreation of all level views
 			populateLevelViews();

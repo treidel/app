@@ -41,7 +41,6 @@ public class LevelingGlassApplication extends Application
 	// /////////////////////////////////////////////////////////////////////////
 
 	private SharedPreferences preferences;
-	private ControlV1 control;
 	private BluetoothDevice device;
 	private Map<Integer, MeterConfig> meterConfigMap = new TreeMap<Integer, MeterConfig>();
 
@@ -103,18 +102,11 @@ public class LevelingGlassApplication extends Application
 			// put the level in the lookup
 			this.meterConfigMap.put(config.getChannel(), config);
 		}
-		// instanciate the control object
-		ControlV1.getInstance();
 
 		// set channel/level data
-		this.control.notifyLevelConfigChange();
+		ControlV1.getInstance().notifyLevelConfigChange();
 
 		LogWrapper.v(TAG, "LevelingGlassApplication::onCreate exit");
-	}
-
-	public ControlV1 getControl()
-	{
-		return control;
 	}
 
 	public BluetoothDevice getDevice()

@@ -154,7 +154,13 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	public static ControlV1 getInstance()
 	{
-		Assert.assertNotNull(instance);
+		synchronized (ControlV1.class)
+		{
+			if (null == instance)
+			{
+				instance = new ControlV1();
+			}
+		}
 		return instance;
 	}
 
@@ -353,6 +359,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			        .array());
 			// write in the serialized request
 			request.writeTo(stream);
+			// indicate the number of bytes used
+			buffer.limit(length);
 			// off she goes
 			this.sppManager.sendRequest(buffer);
 		}
