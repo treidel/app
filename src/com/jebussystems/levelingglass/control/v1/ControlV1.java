@@ -1,4 +1,4 @@
-package com.jebussystems.levelingglass.control;
+package com.jebussystems.levelingglass.control.v1;
 
 import java.nio.ByteBuffer;
 import java.util.Collection;
@@ -6,19 +6,29 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import junit.framework.Assert;
 import v1.V1;
 
+import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
+import com.jebussystems.levelingglass.bluetooth.spp.SPPConnection;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPMessageHandler;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPState;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPStateListener;
+import com.jebussystems.levelingglass.control.LevelDataRecord;
+import com.jebussystems.levelingglass.control.MeterConfig;
+import com.jebussystems.levelingglass.control.MeterType;
+import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
+import com.jebussystems.levelingglass.control.VULevelDataRecord;
 import com.jebussystems.levelingglass.util.EnumMapper;
 import com.jebussystems.levelingglass.util.LogWrapper;
+import com.jebussystems.levelingglass.util.PoolableMessageManager;
 import com.jebussystems.levelingglass.util.StateMachine;
 
 public class ControlV1 implements SPPMessageHandler, SPPStateListener
@@ -40,7 +50,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		CONNECTING, SYNCHRONIZING, CONNECTED
 	}
 
-	private enum Event
+	enum Event
 	{
 
 		CONNECTED, DISCONNECTED, QUERY_CHANNELS_RESPONSE, LEVEL_CHANGE
@@ -51,6 +61,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// /////////////////////////////////////////////////////////////////////////
 
 	private static final String TAG = "control.v1";
+	public static final UUID SERVER_UUID = UUID
+	        .fromString("c20d3a1a-6c0d-11e2-aa09-000c298ce626");
 
 	// /////////////////////////////////////////////////////////////////////////
 	// class variables
@@ -60,6 +72,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	        MeterType.class, V1.LevelType.class);
 	private static final StateMachine<State, Event, ControlV1> stateMachine = new StateMachine<State, Event, ControlV1>(
 	        Event.class, State.CONNECTING);
+	private static final PoolableMessageManager messageManager = new PoolableMessageManager();
+
+	// singleton
+	private static ControlV1 instance = null;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -67,13 +83,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 	private final ScheduledExecutorService executor = Executors
 	        .newSingleThreadScheduledExecutor();
-	private final LevelingGlassApplication application;
-	private final SPPManager manager;
+	private final SPPManager sppManager = new SPPManager(SERVER_UUID);
 	private final Collection<EventListener> listeners = new LinkedList<EventListener>();
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
 	private StateMachine<State, Event, ControlV1>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
-	// private Map<Integer, MeterConfig> channelToMeterConfigMapping = null;
 	private Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();;
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -107,23 +121,26 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		stateMachine.addHandler(State.CONNECTED, Event.LEVEL_CHANGE,
 		        new ChangeLevelInConnectedHandler());
 
+		// register our message pools
+		messageManager.registerPool(LevelChangeMessage.class,
+		        LevelChangeMessage.getPoolInstance());
+		messageManager.registerPool(SPPStateMessage.class,
+		        SPPStateMessage.getPoolInstance());
+
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
 	// /////////////////////////////////////////////////////////////////////////
 
-	public ControlV1(LevelingGlassApplication application)
+	private ControlV1()
 	{
 		LogWrapper.v(TAG, "ControlV1::ControlV1 enter", "this=", this);
 
-		// store the application
-		this.application = application;
-
-		// create the SPP mananger
-		this.manager = new SPPManager(this);
-		// we care about state transitions
-		this.manager.addSPPStateListener(this);
+		// register as the SPP message handler
+		this.sppManager.setMessageHandler(this);
+		// we also care about state transitions
+		this.sppManager.addSPPStateListener(this);
 
 		// setup the state machine state change listener
 		this.stateMachineInstance.setListener(new StateMachineListener());
@@ -135,6 +152,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	public static ControlV1 getInstance()
+	{
+		Assert.assertNotNull(instance);
+		return instance;
+	}
+
 	public void notifyLevelConfigChange()
 	{
 		LogWrapper.v(TAG, "ControlV1::notifyLevelConfigChange enter", "this=",
@@ -144,8 +167,16 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		this.levelDataRecords.clear();
 
 		// trigger the state machine
-		LevelChangeMessage message = new LevelChangeMessage();
-		this.executor.execute(message);
+		try
+		{
+			LevelChangeMessage message = messageManager
+			        .allocateMessage(LevelChangeMessage.class);
+			this.executor.execute(message);
+		}
+		catch (Exception e)
+		{
+			LogWrapper.wtf(TAG, e.getMessage());
+		}
 
 		LogWrapper.v(TAG, "ControlV1::updateLevel exit");
 	}
@@ -172,14 +203,14 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		LogWrapper.v(TAG, "ControlV1::removeListener exit");
 	}
 
-	public SPPManager getManager()
-	{
-		return manager;
-	}
-
 	public Map<Integer, LevelDataRecord> getLevelDataRecord()
 	{
 		return levelDataRecords;
+	}
+
+	public SPPManager getManager()
+	{
+		return sppManager;
 	}
 
 	public State getState()
@@ -197,8 +228,17 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		        this, "state=" + state);
 
 		// send ourselves a message to handle this
-		SPPStateMessage message = new SPPStateMessage(state);
-		this.executor.execute(message);
+		try
+		{
+			SPPStateMessage message = messageManager
+			        .allocateMessage(SPPStateMessage.class);
+			message.init(state);
+			this.executor.execute(message);
+		}
+		catch (Exception e)
+		{
+			LogWrapper.wtf(TAG, e.getMessage());
+		}
 
 		LogWrapper.v(TAG, "ControlV1::notifySPPStateChanged exit");
 	}
@@ -237,6 +277,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			        e.getMessage());
 		}
 		LogWrapper.v(TAG, "ControlV1::handleSPPMessage exit");
+	}
+
+	// ////////////////////////////////////////////////////////////////////////
+	// package protected method implementations
+	// ////////////////////////////////////////////////////////////////////////
+
+	StateMachine<State, Event, ControlV1>.Instance getStateMachineInstance()
+	{
+		return stateMachineInstance;
 	}
 
 	// ////////////////////////////////////////////////////////////////////////
@@ -294,13 +343,23 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		this.pendingRequestQueue.add(request);
 		// calculate how large the request is in bytes
 		short length = (short) request.getSerializedSize();
-		// allocate a byte buffer to hold it
-		ByteBuffer buffer = ByteBuffer.allocate(length);
-		// write in the serialized request
-		byte[] data = request.toByteArray();
-		buffer.put(data);
-		// off she goes
-		this.manager.sendRequest(buffer);
+		try
+		{
+			// allocate a byte buffer to hold it
+			ByteBuffer buffer = SPPConnection.getBufferPool().borrowObject();
+			Assert.assertTrue(buffer.capacity() >= length);
+			// wrap the buffer
+			CodedOutputStream stream = CodedOutputStream.newInstance(buffer
+			        .array());
+			// write in the serialized request
+			request.writeTo(stream);
+			// off she goes
+			this.sppManager.sendRequest(buffer);
+		}
+		catch (Exception e)
+		{
+			LogWrapper.wtf(TAG, e.getMessage());
+		}
 
 		LogWrapper.v(TAG, "ControlV1::sendRequest exit");
 
@@ -315,7 +374,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		if (true == this.pendingRequestQueue.isEmpty())
 		{
 			LogWrapper.e(TAG, "response received when request list is empty");
-			this.manager.disconnect();
+			this.sppManager.disconnect();
 			return;
 		}
 
@@ -326,7 +385,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		if (false == request.getType().equals(response.getType()))
 		{
 			LogWrapper.e(TAG, "request + response types don't match");
-			this.manager.disconnect();
+			this.sppManager.disconnect();
 			return;
 		}
 
@@ -336,30 +395,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			LogWrapper.w(TAG,
 			        "server rejected request, resetting bluetooth connection");
 			// force the server to disconnect
-			this.manager.disconnect();
+			this.sppManager.disconnect();
 		}
 		else
 		{
-			LogWrapper.d(TAG, "type=" + response.getType());
-			switch (response.getType())
-			{
-				case QUERYAUDIOCHANNELS:
-					// trigger the state machine
-					this.stateMachineInstance.evaluate(
-					        Event.QUERY_CHANNELS_RESPONSE,
-					        response.getQueryaudiochannels());
-					// done
-					break;
-
-				case SETLEVEL:
-					// nothing to do
-					break;
-
-				default:
-					LogWrapper.wtf(TAG, "unknown type: "
-					        + response.getType().toString());
-					return;
-			}
+			// fire a message to process in our own thread
+			SPPResponseMessage message = messageManager
+			        .allocateMessage(SPPResponseMessage.class);
+			message.init(response);
+			this.executor.execute(message);
 		}
 		LogWrapper.v(TAG, "ControlV1::handleResponse exit");
 	}
@@ -381,7 +425,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					MeterType recordLevel = levelMapper.mapToInternal(record
 					        .getType());
 					// get the configured level
-					MeterType configuredLevel = application
+					MeterType configuredLevel = LevelingGlassApplication
+					        .getInstance()
 					        .getConfigForChannel(record.getChannel())
 					        .getMeterType();
 					// ignore if the type doesn't match
@@ -458,55 +503,6 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		}
 	}
 
-	private class LevelChangeMessage implements Runnable
-	{
-		@Override
-		public void run()
-		{
-			LogWrapper.v(TAG, "ControlV1::LevelChangeMessage::run enter",
-			        "this=", this);
-			stateMachineInstance.evaluate(Event.LEVEL_CHANGE, null);
-			LogWrapper.v(TAG, "ControlV1::LevelChangeMessage::run exit");
-		}
-	}
-
-	private class SPPStateMessage implements Runnable
-	{
-		private final SPPState state;
-
-		public SPPStateMessage(SPPState state)
-		{
-			this.state = state;
-		}
-
-		@Override
-		public void run()
-		{
-			LogWrapper.v(TAG, "ControlV1::SPPStateMessage::run enter", "this",
-			        this, "state=", state);
-
-			switch (this.state)
-			{
-				case CONNECTED:
-					// send in the event
-					stateMachineInstance.evaluate(Event.CONNECTED, null);
-					break;
-				case DISCONNECTED:
-				case RECONNECTING:
-					// send in the event
-					stateMachineInstance.evaluate(Event.DISCONNECTED, null);
-					break;
-				case CONNECTING:
-					// ignore
-					break;
-				default:
-					LogWrapper.wtf(TAG, "state=", this.state);
-					return;
-			}
-			LogWrapper.v(TAG, "ControlV1::SPPStateMessage::run exit");
-		}
-	}
-
 	private static class ConnectHandler implements
 	        StateMachine.Handler<State, ControlV1>
 	{
@@ -539,7 +535,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			for (int channel : response.getChannelsList())
 			{
 				// if we don't know about this channel populate
-				MeterConfig config = object.application
+				MeterConfig config = LevelingGlassApplication.getInstance()
 				        .getConfigForChannel(channel);
 				if (null == config)
 				{
@@ -547,7 +543,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					        ", setting to NONE");
 					// create + store the channel config
 					config = new MeterConfig(channel, MeterType.NONE);
-					object.application.setConfigForChannel(config);
+					LevelingGlassApplication.getInstance().setConfigForChannel(
+					        config);
 				}
 				else
 				{
@@ -593,10 +590,11 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			        .v(TAG,
 			                "ControlV1::ChangeLevelInConnectedHandler::handleEvent enter",
 			                "this=", this, "object=", object, "data=" + data);
-			for (int channel : object.application.getChannelSet())
+			for (int channel : LevelingGlassApplication.getInstance()
+			        .getChannelSet())
 			{
 				// get the config
-				MeterConfig config = object.application
+				MeterConfig config = LevelingGlassApplication.getInstance()
 				        .getConfigForChannel(channel);
 				// send the new level
 				object.sendLevelRequest(channel, config);

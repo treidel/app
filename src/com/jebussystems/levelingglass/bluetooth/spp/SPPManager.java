@@ -16,6 +16,7 @@ import android.bluetooth.BluetoothSocket;
 import android.os.ParcelUuid;
 
 import com.jebussystems.levelingglass.util.LogWrapper;
+import com.jebussystems.levelingglass.util.PoolableMessageManager;
 import com.jebussystems.levelingglass.util.StateMachine;
 
 public class SPPManager implements SPPConnection.Listener,
@@ -26,8 +27,7 @@ public class SPPManager implements SPPConnection.Listener,
 	// /////////////////////////////////////////////////////////////////////////
 	private static final String TAG = "spp.manager";
 
-	public static final UUID SERVER_UUID = UUID
-	        .fromString("c20d3a1a-6c0d-11e2-aa09-000c298ce626");
+	private static final int RETRY_TIMER_IN_SECS = 10;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
@@ -38,9 +38,9 @@ public class SPPManager implements SPPConnection.Listener,
 		void notifyCompatibility(boolean isCompatible);
 	}
 
-	private enum Event
+	enum Event
 	{
-		CONNECT, DISCONNECT, NOTIFY_CONNECTED, NOTIFY_DISCONNECTED, MESSAGE, TIMER
+		CONNECT, DISCONNECT, NOTIFY_CONNECTED, NOTIFY_DISCONNECTED, SENDREQUEST, TIMER
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -49,20 +49,22 @@ public class SPPManager implements SPPConnection.Listener,
 
 	private static final StateMachine<SPPState, Event, SPPManager> stateMachine = new StateMachine<SPPState, SPPManager.Event, SPPManager>(
 	        SPPManager.Event.class, SPPState.DISCONNECTED);
+	private static final PoolableMessageManager messageManager = new PoolableMessageManager();
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
 	// /////////////////////////////////////////////////////////////////////////
 
+	private final UUID uuid;
 	private final ScheduledExecutorService executor = Executors
 	        .newSingleThreadScheduledExecutor();
+	private final ReconnectMessage reconnectMessage = new ReconnectMessage(this);
 	private final StateMachine<SPPState, Event, SPPManager>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
-	private final SPPMessageHandler messageHandler;
+	private SPPMessageHandler messageHandler = null;
 	private final Collection<SPPStateListener> listeners = new LinkedList<SPPStateListener>();
 	private SPPConnection connection = null;
 	private Future<?> timerHandler = null;
-	private BluetoothDevice device = null;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// static initialization
@@ -74,6 +76,8 @@ public class SPPManager implements SPPConnection.Listener,
 		        new ConnectHandler());
 		stateMachine.addHandler(SPPState.DISCONNECTED, Event.DISCONNECT,
 		        stateMachine.createDoNothingHandler());
+		stateMachine.addHandler(SPPState.DISCONNECTED, Event.SENDREQUEST,
+		        stateMachine.createDoNothingHandler());
 		stateMachine.addHandler(SPPState.CONNECTING, Event.NOTIFY_CONNECTED,
 		        new NotifyConnectedHandler());
 		stateMachine.addHandler(SPPState.CONNECTING, Event.NOTIFY_DISCONNECTED,
@@ -84,32 +88,50 @@ public class SPPManager implements SPPConnection.Listener,
 		        new ForceDisconnectHandler());
 		stateMachine.addHandler(SPPState.CONNECTED, Event.NOTIFY_DISCONNECTED,
 		        new NotifyDisconnectedHandler());
-		stateMachine.addHandler(SPPState.CONNECTED, Event.MESSAGE,
+		stateMachine.addHandler(SPPState.CONNECTED, Event.SENDREQUEST,
 		        new MessageHandler());
 		stateMachine.addHandler(SPPState.RECONNECTING, Event.TIMER,
 		        new ReconnectHandler());
 		stateMachine.addHandler(SPPState.RECONNECTING, Event.DISCONNECT,
 		        new CancelReconnectHandler());
+
+		// setup the message pools
+		messageManager.registerPool(ConnectMessage.class,
+		        ConnectMessage.getPoolInstance());
+		messageManager.registerPool(DisconnectMessage.class,
+		        DisconnectMessage.getPoolInstance());
+		messageManager.registerPool(NotifyConnectedMessage.class,
+		        NotifyConnectedMessage.getPoolInstance());
+		messageManager.registerPool(NotifyDisconnectedMessage.class,
+		        NotifyDisconnectedMessage.getPoolInstance());
+		messageManager.registerPool(SendRequestMessage.class,
+		        SendRequestMessage.getPoolInstance());
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
 	// /////////////////////////////////////////////////////////////////////////
 
-	public SPPManager(SPPMessageHandler messageHandler)
+	public SPPManager(UUID uuid)
 	{
-		LogWrapper.v(TAG, "SPPManager::SPPManager enter", "this=", this,
-		        "messageHandler=", messageHandler);
-		// store the message handler
-		this.messageHandler = messageHandler;
+		LogWrapper.v(TAG, "SPPManager::SPPManager enter", "this=", this);
+
+		// store the UUID
+		this.uuid = uuid;
 		// add ourselves as a state machine listener
 		this.stateMachineInstance.setListener(this);
+
 		LogWrapper.v(TAG, "SPPManager::SPPManager exit");
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
+
+	public void setMessageHandler(SPPMessageHandler messageHandler)
+	{
+		this.messageHandler = messageHandler;
+	}
 
 	public boolean connect(BluetoothDevice device)
 	{
@@ -126,16 +148,14 @@ public class SPPManager implements SPPConnection.Listener,
 			// make sure the peer supports our service
 			if (true == checkDeviceForCompatibility(device))
 			{
-				// if we already have a device disconnect
-				if (null != this.device)
-				{
-					disconnect();
-				}
-				// send the connection message
-				ConnectMessage message = new ConnectMessage(device);
+				// make sure we're disconnected
+				disconnect();
+				// allocate + populate the connection message
+				ConnectMessage message = messageManager
+				        .allocateMessage(ConnectMessage.class);
+				message.init(this, device);
+				// queue it to run
 				this.executor.execute(message);
-				// store the device
-				this.device = device;
 				// success
 				result = true;
 			}
@@ -159,10 +179,9 @@ public class SPPManager implements SPPConnection.Listener,
 	{
 		LogWrapper.v(TAG, "SPPManager::disconnect enter", "this=", this);
 		// send the disconnect message
-		DisconnectMessage message = new DisconnectMessage();
+		DisconnectMessage message = messageManager
+		        .allocateMessage(DisconnectMessage.class);
 		this.executor.execute(message);
-		// forget about the device
-		this.device = null;
 		LogWrapper.v(TAG, "SPPManager::disconnect exit");
 	}
 
@@ -170,7 +189,9 @@ public class SPPManager implements SPPConnection.Listener,
 	{
 		LogWrapper.v(TAG, "SPPManager::sendRequest enter", "this=", this,
 		        "request=", request);
-		SendRequestMessage message = new SendRequestMessage(request);
+		SendRequestMessage message = messageManager
+		        .allocateMessage(SendRequestMessage.class);
+		message.init(this, request);
 		this.executor.execute(message);
 		LogWrapper.v(TAG, "SPPManager::sendRequest exit");
 	}
@@ -211,7 +232,9 @@ public class SPPManager implements SPPConnection.Listener,
 	{
 		LogWrapper.v(TAG, "SPPManager::connected enter", "this=", this,
 		        "connection=", connection);
-		NotifyConnectedMessage message = new NotifyConnectedMessage(connection);
+		NotifyConnectedMessage message = messageManager
+		        .allocateMessage(NotifyConnectedMessage.class);
+		message.init(this, connection);
 		this.executor.execute(message);
 		LogWrapper.v(TAG, "SPPManager::connected exit");
 	}
@@ -221,8 +244,9 @@ public class SPPManager implements SPPConnection.Listener,
 	{
 		LogWrapper.v(TAG, "SPPManager::disconnected enter connection="
 		        + connection);
-		NotifyDisconnectedMessage message = new NotifyDisconnectedMessage(
-		        connection);
+		NotifyDisconnectedMessage message = messageManager
+		        .allocateMessage(NotifyDisconnectedMessage.class);
+		message.init(this, connection);
 		this.executor.execute(message);
 		LogWrapper.v(TAG, "SPPManager::disconnected exit");
 	}
@@ -254,6 +278,11 @@ public class SPPManager implements SPPConnection.Listener,
 	// package protected methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	StateMachine<SPPState, Event, SPPManager>.Instance getStateMachineInstance()
+	{
+		return stateMachineInstance;
+	}
+
 	// /////////////////////////////////////////////////////////////////////////
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
@@ -262,7 +291,7 @@ public class SPPManager implements SPPConnection.Listener,
 	{
 		for (ParcelUuid parcelUUID : device.getUuids())
 		{
-			if (true == parcelUUID.getUuid().equals(SERVER_UUID))
+			if (true == parcelUUID.getUuid().equals(this.uuid))
 			{
 				return true;
 			}
@@ -273,132 +302,6 @@ public class SPPManager implements SPPConnection.Listener,
 	// /////////////////////////////////////////////////////////////////////////
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
-
-	private class ConnectMessage implements Runnable
-	{
-		private final BluetoothDevice device;
-
-		public ConnectMessage(BluetoothDevice device)
-		{
-			this.device = device;
-		}
-
-		public void run()
-		{
-			LogWrapper.v(TAG, "SPPManager::ConnectMessage::run enter", "this=",
-			        this, "device=", device);
-			// fire the state machine event
-			stateMachineInstance.evaluate(Event.CONNECT, device);
-			LogWrapper.v(TAG, "SPPManager::ConnectMessage::run exit");
-		}
-	}
-
-	private class DisconnectMessage implements Runnable
-	{
-		public void run()
-		{
-			LogWrapper.v(TAG, "SPPManager::DisconnectMessage::run enter");
-			// run the state machine
-			stateMachineInstance.evaluate(Event.DISCONNECT, null);
-			LogWrapper.v(TAG, "SPPManager::DisconnectMessage::run exit");
-		}
-	}
-
-	private class NotifyConnectedMessage implements Runnable
-	{
-		private final SPPConnection connection;
-
-		public NotifyConnectedMessage(SPPConnection connection)
-		{
-			this.connection = connection;
-		}
-
-		public void run()
-		{
-			LogWrapper.v(TAG,
-			        "SPPManager::NotifyConnectedMessage::run enter connection="
-			                + connection);
-			// ignore if this is stale
-			if (this.connection != SPPManager.this.connection)
-			{
-				LogWrapper.w(TAG, "connect: ignoring stale connection for");
-				this.connection.close();
-				return;
-			}
-			// run the state machine
-			stateMachineInstance.evaluate(Event.NOTIFY_CONNECTED, connection);
-			LogWrapper.v(TAG, "SPPManager::NotifyConnectedMessage::run exit");
-		}
-	}
-
-	private class NotifyDisconnectedMessage implements Runnable
-	{
-		private final SPPConnection connection;
-
-		public NotifyDisconnectedMessage(SPPConnection connection)
-		{
-			this.connection = connection;
-		}
-
-		public void run()
-		{
-			LogWrapper.v(TAG,
-			        "SPPManager::NotifyDisconnectedMessage::run enter connection="
-			                + connection);
-			// ignore if this is stale
-			if (this.connection != SPPManager.this.connection)
-			{
-				LogWrapper.w(TAG, "disconnect: ignoring stale connection");
-				this.connection.close();
-				return;
-			}
-			// run the state machine
-			stateMachineInstance.evaluate(Event.NOTIFY_DISCONNECTED,
-			        connection.getDevice());
-
-			LogWrapper
-			        .v(TAG, "SPPManager::NotifyDisconnectedMessage::run exit");
-		}
-	}
-
-	private class SendRequestMessage implements Runnable
-	{
-		private final ByteBuffer message;
-
-		public SendRequestMessage(ByteBuffer message)
-		{
-			this.message = message;
-		}
-
-		public void run()
-		{
-			LogWrapper.v(TAG,
-			        "SPPManager::SendRequestMessage::run enter message="
-			                + message);
-			// run the state machine
-			stateMachineInstance.evaluate(Event.MESSAGE, message);
-			LogWrapper.v(TAG, "SPPManager::SendRequestMessage::run exit");
-		}
-	}
-
-	private class ReconnectMessage implements Runnable
-	{
-		private final BluetoothDevice device;
-
-		public ReconnectMessage(BluetoothDevice device)
-		{
-			this.device = device;
-		}
-
-		@Override
-		public void run()
-		{
-			LogWrapper.v(TAG, "SPPManager::ReconnectMessage::run enter device="
-			        + device);
-			stateMachineInstance.evaluate(Event.TIMER, device);
-			LogWrapper.v(TAG, "SPPManager::ReconnectMessage::run exit");
-		}
-	}
 
 	private static class ConnectHandler implements
 	        StateMachine.Handler<SPPState, SPPManager>
@@ -412,7 +315,7 @@ public class SPPManager implements SPPConnection.Listener,
 			{
 				// create the socket
 				BluetoothSocket socket = ((BluetoothDevice) data)
-				        .createRfcommSocketToServiceRecord(SERVER_UUID);
+				        .createRfcommSocketToServiceRecord(object.uuid);
 				// create the connection
 				object.connection = new SPPConnection(object, socket,
 				        object.messageHandler);
@@ -481,10 +384,10 @@ public class SPPManager implements SPPConnection.Listener,
 			// close the connection
 			object.connection.close();
 			object.connection = null;
-			// start the reconnect timer
-			ReconnectMessage message = object.new ReconnectMessage(
-			        (BluetoothDevice) data);
-			object.timerHandler = object.executor.schedule(message, 20,
+			// start the reconnect timer using the 'static' reconnect message
+			object.reconnectMessage.init((BluetoothDevice) data);
+			object.timerHandler = object.executor.schedule(
+			        object.reconnectMessage, RETRY_TIMER_IN_SECS,
 			        TimeUnit.SECONDS);
 			// now we're reconnecting
 			LogWrapper.v(TAG,
@@ -508,7 +411,7 @@ public class SPPManager implements SPPConnection.Listener,
 			{
 				// create the socket
 				BluetoothSocket socket = ((BluetoothDevice) data)
-				        .createRfcommSocketToServiceRecord(SERVER_UUID);
+				        .createRfcommSocketToServiceRecord(object.uuid);
 				// trigger a connection
 				object.connection = new SPPConnection(object, socket,
 				        object.messageHandler);

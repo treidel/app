@@ -24,7 +24,7 @@ import android.widget.ListView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
-import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
+import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 
 public class PeerSelectionActivity extends Activity
@@ -294,7 +294,7 @@ public class PeerSelectionActivity extends Activity
 				for (int i = 0; i != uuids.length; ++i)
 				{
 					ParcelUuid uuid = (ParcelUuid) uuids[i];
-					if (true == uuid.getUuid().equals(SPPManager.SERVER_UUID))
+					if (true == uuid.getUuid().equals(ControlV1.SERVER_UUID))
 					{
 						// start the connection activity
 						handleDeviceSelected(device);

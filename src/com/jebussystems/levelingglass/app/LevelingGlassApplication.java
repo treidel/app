@@ -10,8 +10,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.SharedPreferences;
 
-import com.jebussystems.levelingglass.control.ControlV1;
 import com.jebussystems.levelingglass.control.MeterConfig;
+import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 
 import flexjson.JSONDeserializer;
@@ -32,6 +32,7 @@ public class LevelingGlassApplication extends Application
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
 
+	private static LevelingGlassApplication instance = null;
 	private static final JSONSerializer meterConfigSerializer = new JSONSerializer();
 	private static final JSONDeserializer<MeterConfig> meterConfigDeserializer = new JSONDeserializer<MeterConfig>();
 
@@ -52,11 +53,19 @@ public class LevelingGlassApplication extends Application
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	public static LevelingGlassApplication getInstance()
+	{
+		return instance;
+	}
+
 	@Override
 	public void onCreate()
 	{
 		LogWrapper.v(TAG, "LevelingGlassApplication::onCreate enter", "this=",
 		        this);
+
+		// store a reference to ourselves
+		instance = this;
 
 		// create the preferences object
 		this.preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
@@ -94,8 +103,9 @@ public class LevelingGlassApplication extends Application
 			// put the level in the lookup
 			this.meterConfigMap.put(config.getChannel(), config);
 		}
-		// create the control object
-		this.control = new ControlV1(this);
+		// instanciate the control object
+		ControlV1.getInstance();
+
 		// set channel/level data
 		this.control.notifyLevelConfigChange();
 

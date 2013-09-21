@@ -19,12 +19,12 @@ import android.widget.TextView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
-import com.jebussystems.levelingglass.control.ControlV1;
 import com.jebussystems.levelingglass.control.LevelDataRecord;
 import com.jebussystems.levelingglass.control.MeterConfig;
 import com.jebussystems.levelingglass.control.MeterType;
 import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
+import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 import com.jebussystems.levelingglass.view.AudioLevelView;
 
@@ -76,9 +76,10 @@ public class MainActivity extends Activity
 
 		// attempt start a connection to the device
 		BluetoothDevice device = application.getDevice();
-		if (false == application.getControl().getManager().connect(device))
+		if (false == ControlV1.getInstance().getManager().connect(device))
 		{
-			// the device is no longer valid so abort this activity and go back to the device 
+			// the device is no longer valid so abort this activity and go back
+			// to the device
 			// selection activity
 			finish();
 		}
@@ -146,7 +147,7 @@ public class MainActivity extends Activity
 		if (true == isFinishing())
 		{
 			// force a disconnect
-			application.getControl().getManager().disconnect();
+			ControlV1.getInstance().getManager().disconnect();
 		}
 
 		LogWrapper.v(TAG, "MainActivity::onDestroy exit");
@@ -302,7 +303,7 @@ public class MainActivity extends Activity
 
 		public void refresh()
 		{
-			final ControlV1.State state = application.getControl().getState();
+			final ControlV1.State state = ControlV1.getInstance().getState();
 			runOnUiThread(new Runnable()
 			{
 				@Override
@@ -639,7 +640,7 @@ public class MainActivity extends Activity
 			                "MainActivity::CancelConnectionClickListener::onClick enter",
 			                "this=", this, "dialog=", dialog, "which=", which);
 			// disconnect and close this activity
-			application.getControl().getManager().disconnect();
+			ControlV1.getInstance().getManager().disconnect();
 			MainActivity.this.finish();
 			LogWrapper
 			        .v(TAG,

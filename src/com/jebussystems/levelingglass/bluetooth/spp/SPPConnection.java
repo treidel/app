@@ -5,10 +5,17 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import junit.framework.Assert;
+
+import org.apache.commons.pool.BasePoolableObjectFactory;
+import org.apache.commons.pool.ObjectPool;
+import org.apache.commons.pool.impl.StackObjectPool;
+
 import com.jebussystems.levelingglass.util.LogWrapper;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.util.Log;
 
 public class SPPConnection
 {
@@ -16,6 +23,8 @@ public class SPPConnection
 	// constants
 	// /////////////////////////////////////////////////////////////////////////
 	private static final String TAG = "spp.connection";
+
+	private static final int BUFFER_SIZE = 128;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
@@ -31,6 +40,9 @@ public class SPPConnection
 	// /////////////////////////////////////////////////////////////////////////
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
+
+	private static final ObjectPool<ByteBuffer> pool = new StackObjectPool<ByteBuffer>(
+	        new ByteBufferFactory());
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -80,6 +92,11 @@ public class SPPConnection
 	// public methods
 	// /////////////////////////////////////////////////////////////////////////
 
+	public static ObjectPool<ByteBuffer> getBufferPool()
+	{
+		return pool;
+	}
+
 	public void sendRequest(ByteBuffer request) throws IOException
 	{
 		LogWrapper.v(TAG, "SPPConnection::sendRequest enter", "this=", this,
@@ -91,6 +108,15 @@ public class SPPConnection
 		this.writeStream.write(request.array());
 		// flush
 		this.writeStream.flush();
+		// release
+		try
+        {
+	        getBufferPool().returnObject(request);
+        }
+        catch (Exception e)
+        {
+        	LogWrapper.wtf(TAG, e.getMessage());
+        }
 
 		LogWrapper.v(TAG, "SPPConnection::sendRequest exit");
 	}
@@ -157,10 +183,18 @@ public class SPPConnection
 					// read the size of the message
 					short length = readStream.readShort();
 					// allocate a buffer and read the message in
-					ByteBuffer buffer = ByteBuffer.allocate(length);
-					readStream.read(buffer.array(), 0, length);
-					// call the handler
-					messageHandler.handleSPPMessage(buffer);
+					try
+					{
+						ByteBuffer buffer = getBufferPool().borrowObject();
+						Assert.assertTrue(buffer.capacity() >= length);
+						readStream.read(buffer.array(), 0, length);
+						// call the handler
+						messageHandler.handleSPPMessage(buffer);
+					}
+					catch (Exception e)
+					{
+						Log.wtf(TAG, e.getMessage());
+					}
 				}
 			}
 			catch (IOException e)
@@ -174,5 +208,30 @@ public class SPPConnection
 			}
 			LogWrapper.v(TAG, "SPPConnection::ReadThread::run exit");
 		}
+	}
+
+	private static class ByteBufferFactory extends
+	        BasePoolableObjectFactory<ByteBuffer>
+	{
+
+		@Override
+		public ByteBuffer makeObject() throws Exception
+		{
+			LogWrapper.v(TAG,
+			        "SPPConnection::ByteBufferFactory::makeObject entry",
+			        "this=", this);
+			ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+			LogWrapper.v(TAG,
+			        "SPPConnection::ByteBufferFactory::makeObject exit",
+			        "buffer=", buffer);
+			return buffer;
+		}
+
+		@Override
+		public void passivateObject(ByteBuffer buffer)
+		{
+			buffer.clear();
+		}
+
 	}
 }
