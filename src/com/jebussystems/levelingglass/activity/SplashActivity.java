@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.Handler;
 
 import com.jebussystems.levelingglass.R;
+import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.util.LogWrapper;
 
 public class SplashActivity extends Activity
@@ -18,7 +19,7 @@ public class SplashActivity extends Activity
 
 	private static final String TAG = "activity.splash";
 
-	private static final int SPLASH_DELAY_IN_SECS = 2;
+	private static final int SPLASH_DELAY_IN_SECS = 1;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// class variables
@@ -46,6 +47,19 @@ public class SplashActivity extends Activity
 		LogWrapper.v(TAG, "SplashActivity::onCreate enter", "this=", this);
 
 		super.onCreate(savedInstanceState);
+
+		// only show the splash on the first time
+		if (2 >= ((LevelingGlassApplication) getApplication())
+		        .incrementSplashCount())
+		{
+			// don't come back here
+			finish();
+			// start the peer selection activity
+			Intent intent = new Intent(SplashActivity.this,
+			        PeerSelectionActivity.class);
+			startActivity(intent);
+			return;
+		}
 
 		// setup the layout
 		setContentView(R.layout.splash);

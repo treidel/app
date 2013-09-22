@@ -5,8 +5,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
-import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -89,7 +89,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	private Queue<V1.Request> pendingRequestQueue = new LinkedList<V1.Request>();
 	private StateMachine<State, Event, ControlV1>.Instance stateMachineInstance = stateMachine
 	        .createInstance(this);
-	private Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();;
+	private final Map<Integer, LevelDataRecord> levelDataRecords = new ConcurrentHashMap<Integer, LevelDataRecord>();;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// static initialization
@@ -428,19 +428,17 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		switch (notification.getType())
 		{
 			case LEVEL:
-				// store the level data internally
-				Map<Integer, LevelDataRecord> levelDataRecords = new TreeMap<Integer, LevelDataRecord>();
-				for (v1.V1.LevelRecord record : notification.getLevel()
+				for (v1.V1.LevelRecord externalRecord : notification.getLevel()
 				        .getRecordsList())
 
 				{
 					// convert the type into our internal version
-					MeterType recordLevel = levelMapper.mapToInternal(record
-					        .getType());
+					MeterType recordLevel = levelMapper
+					        .mapToInternal(externalRecord.getType());
 					// get the configured level
 					MeterType configuredLevel = LevelingGlassApplication
 					        .getInstance()
-					        .getConfigForChannel(record.getChannel())
+					        .getConfigForChannel(externalRecord.getChannel())
 					        .getMeterType();
 					// ignore if the type doesn't match
 					if (false == recordLevel.equals(configuredLevel))
@@ -449,31 +447,32 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 						        recordLevel, "configured=", configuredLevel);
 						continue;
 					}
-					switch (record.getType())
-					{
-						case PPM:
-						case DIGITALPEAK:
-							// create + store a peak data record
-							Float holdInDB = null;
-							if (true == record.hasHoldInDB())
-							{
-								holdInDB = record.getHoldInDB();
-							}
-							levelDataRecords.put(
-							        record.getChannel(),
-							        new PeakLevelDataRecord(
-							                record.getChannel(), record
-							                        .getPeakInDB(), holdInDB));
-							break;
-						case VU:
-							levelDataRecords.put(record.getChannel(),
-							        new VULevelDataRecord(record.getChannel(),
-							                record.getVuInUnits()));
+					// get the record
+					LevelDataRecord internalRecord = this.levelDataRecords
+					        .get(configuredLevel);
 
+					synchronized (internalRecord)
+					{
+						switch (configuredLevel)
+						{
+							case PPM:
+							case DIGITALPEAK:
+								// update the internal record
+								((PeakLevelDataRecord) internalRecord)
+								        .setPeaklevelInDB(externalRecord
+								                .getPeakInDB());
+								((PeakLevelDataRecord) internalRecord)
+								        .setHoldLevelInDB(externalRecord
+								                .getHoldInDB());
+								break;
+							case VU:
+								((VULevelDataRecord) internalRecord)
+								        .setVUInUnits(externalRecord
+								                .getVuInUnits());
+								break;
+						}
 					}
 				}
-				// swap the existing level data with the new data
-				this.levelDataRecords = levelDataRecords;
 				// let the listeners know there's new data available
 				synchronized (this.listeners)
 				{
@@ -584,7 +583,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 			        "ControlV1::DisconnectHandler::handleEvent enter", "this=",
 			        this, "object=", object, "data=" + data);
 			// clear any level data we may have
-			object.levelDataRecords = null;
+			object.levelDataRecords.clear();
 			// clear any pending messages
 			object.pendingRequestQueue.clear();
 			// now connecting

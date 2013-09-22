@@ -96,7 +96,8 @@ public class MainActivity extends Activity
 			// find the list
 			this.listview = (ListView) findViewById(R.id.listview_main);
 			// add an item click listener
-			this.listview.setOnItemClickListener(new MainListViewItemClickListener());
+			this.listview
+			        .setOnItemClickListener(new MainListViewItemClickListener());
 		}
 		LogWrapper.v(TAG, "MainActivity::onCreate exit");
 
@@ -166,12 +167,13 @@ public class MainActivity extends Activity
 	private void populateLevelViews()
 	{
 		// create a new adapter
-		CustomAdapter adapter = new CustomAdapter(application.getChannelSet().size());
+		CustomAdapter adapter = new CustomAdapter(application.getChannelSet()
+		        .size());
 		for (int channel : application.getChannelSet())
 		{
 			// get the channel config
 			MeterConfig config = application.getConfigForChannel(channel);
-			// tell the adapter about it 
+			// tell the adapter about it
 			adapter.addChannel(config);
 		}
 		// attach the adapter to the list to display our levels
@@ -188,32 +190,34 @@ public class MainActivity extends Activity
 		{
 			for (LevelDataRecord record : records.values())
 			{
-				// find the layout view
-				View view = listview.getChildAt(record.getChannel() - 1);
-				// find the audio level view
-				AudioLevelView audiolevel = (AudioLevelView) view
-				        .findViewById(R.id.audiolevelview);
-				switch (record.getType())
+				synchronized (record)
 				{
-					case PPM:
-					case DIGITALPEAK:
-						// set the level
-						audiolevel.setLevel(((PeakLevelDataRecord) record)
-						        .getPeakLevelInDB());
-						audiolevel.setHold(((PeakLevelDataRecord) record)
-						        .getHoldLevelInDB());
-						break;
-					case VU:
-						// set the level
-						audiolevel.setLevel(((VULevelDataRecord) record)
-						        .getVUInUnits());
-						break;
-					default:
-						LogWrapper.wtf(TAG, "unexpected level=",
-						        record.getType());
-						return;
+					// find the layout view
+					View view = listview.getChildAt(record.getChannel() - 1);
+					// find the audio level view
+					AudioLevelView audiolevel = (AudioLevelView) view
+					        .findViewById(R.id.audiolevelview);
+					switch (record.getType())
+					{
+						case PPM:
+						case DIGITALPEAK:
+							// set the level
+							audiolevel.setLevel(((PeakLevelDataRecord) record)
+							        .getPeakLevelInDB());
+							audiolevel.setHold(((PeakLevelDataRecord) record)
+							        .getHoldLevelInDB());
+							break;
+						case VU:
+							// set the level
+							audiolevel.setLevel(((VULevelDataRecord) record)
+							        .getVUInUnits());
+							break;
+						default:
+							LogWrapper.wtf(TAG, "unexpected level=",
+							        record.getType());
+							return;
+					}
 				}
-
 			}
 		}
 	}
@@ -374,11 +378,14 @@ public class MainActivity extends Activity
 	{
 
 		@Override
-        public void onItemClick(AdapterView<?> parent, View view, int position, long id)
-        {
-			LogWrapper.v(TAG,
-			        "MainActivity::MainListViewItemClickListener::onItemClick enter",
-			        "this=", this, "parent=", parent, "view=", view, "position=", position, "id=", id);
+		public void onItemClick(AdapterView<?> parent, View view, int position,
+		        long id)
+		{
+			LogWrapper
+			        .v(TAG,
+			                "MainActivity::MainListViewItemClickListener::onItemClick enter",
+			                "this=", this, "parent=", parent, "view=", view,
+			                "position=", position, "id=", id);
 			// pop up the level dialog
 			AlertDialog.Builder builder = new AlertDialog.Builder(
 			        MainActivity.this);
@@ -619,44 +626,44 @@ public class MainActivity extends Activity
 		}
 
 	}
-	
+
 	private class CustomAdapter extends BaseAdapter
 	{
 		private final List<MeterConfig> meterConfigList;
 		private final LayoutInflater vi = (LayoutInflater) getApplicationContext()
-        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-		
+		        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
 		public CustomAdapter(int count)
-		{		
+		{
 			this.meterConfigList = new ArrayList<MeterConfig>(count);
 		}
-		
+
 		public void addChannel(MeterConfig meterConfig)
 		{
 			this.meterConfigList.add(meterConfig);
 		}
-		
-		@Override
-        public int getCount()
-        {
-	        return this.meterConfigList.size();
-        }
 
 		@Override
-        public Object getItem(int position)
-        {
-	        return position;
-        }
+		public int getCount()
+		{
+			return this.meterConfigList.size();
+		}
 
 		@Override
-        public long getItemId(int position)
-        {
-	        return position;
-        }
+		public Object getItem(int position)
+		{
+			return position;
+		}
 
 		@Override
-        public View getView(int position, View convertView, ViewGroup parent)
-        {
+		public long getItemId(int position)
+		{
+			return position;
+		}
+
+		@Override
+		public View getView(int position, View convertView, ViewGroup parent)
+		{
 
 			// get the channel config
 			MeterConfig config = application.getConfigForChannel(position + 1);
@@ -683,9 +690,9 @@ public class MainActivity extends Activity
 			}
 			// inflate the layout for the audio view
 			View view = (ViewGroup) vi.inflate(layoutId, null);
-	        // done
+			// done
 			return view;
-        }
-		
+		}
+
 	}
 }

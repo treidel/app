@@ -43,6 +43,7 @@ public class LevelingGlassApplication extends Application
 	private SharedPreferences preferences;
 	private BluetoothDevice device;
 	private Map<Integer, MeterConfig> meterConfigMap = new TreeMap<Integer, MeterConfig>();
+	private int splashCount = 0;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -55,6 +56,12 @@ public class LevelingGlassApplication extends Application
 	public static LevelingGlassApplication getInstance()
 	{
 		return instance;
+	}
+	
+	public int incrementSplashCount()
+	{
+		splashCount++;
+		return splashCount;
 	}
 
 	@Override
