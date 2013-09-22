@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:custom="http://schemas.android.com/apk/res/com.jebussystems.levelingglass"
-    android:id="@+id/peaklevel_layout"
+    android:id="@+id/layout_ppmlevel"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="2dp" >
 
     <com.jebussystems.levelingglass.view.AudioLevelView
-        android:id="@+id/audio_view"
+        android:id="@+id/audiolevelview"
         android:layout_width="match_parent"
         android:layout_height="?android:attr/listPreferredItemHeight"
         android:padding="2dp"

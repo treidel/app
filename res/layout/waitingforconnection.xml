@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/waitingforconnection_layout"
+    android:id="@+id/layout_waitingforconnection"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/background_dark"
@@ -8,7 +8,7 @@
     android:orientation="horizontal" >
 
     <ProgressBar
-        android:id="@+id/waitingforconnection_progressbar"
+        android:id="@+id/progressbar_waitingforconnection"
         style="?android:attr/progressBarStyleLarge"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -22,7 +22,7 @@
         android:orientation="vertical" >
 
         <TextView
-            android:id="@+id/peer_textview"
+            android:id="@+id/textview_peer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ems="10"
@@ -32,7 +32,7 @@
         </TextView>
 
         <TextView
-            android:id="@+id/status_textview"
+            android:id="@+id/textview_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ems="10"

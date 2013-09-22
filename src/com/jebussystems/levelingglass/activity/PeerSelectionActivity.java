@@ -80,7 +80,7 @@ public class PeerSelectionActivity extends Activity
 		        android.R.layout.simple_list_item_1);
 
 		// find the listview
-		ListView listView = (ListView) findViewById(R.id.peers_listview);
+		ListView listView = (ListView) findViewById(R.id.listview_peers);
 
 		// link the adapter to the listview
 		listView.setAdapter(this.adapter);

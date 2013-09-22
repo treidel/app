@@ -1,5 +1,7 @@
 package com.jebussystems.levelingglass.activity;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import android.app.Activity;
@@ -11,6 +13,10 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.BaseAdapter;
+import android.widget.ListView;
 import android.widget.RadioGroup;
 import android.widget.RadioGroup.OnCheckedChangeListener;
 import android.widget.SeekBar;
@@ -46,7 +52,7 @@ public class MainActivity extends Activity
 
 	private LevelingGlassApplication application;
 	private ControlEventListener listener;
-	private ViewGroup layout = null;
+	private ListView listview = null;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -85,12 +91,12 @@ public class MainActivity extends Activity
 		}
 		else
 		{
-
 			// setup the layout
 			setContentView(R.layout.main);
-
-			// find the layout
-			this.layout = (ViewGroup) findViewById(R.id.main_layout);
+			// find the list
+			this.listview = (ListView) findViewById(R.id.listview_main);
+			// add an item click listener
+			this.listview.setOnItemClickListener(new MainListViewItemClickListener());
 		}
 		LogWrapper.v(TAG, "MainActivity::onCreate exit");
 
@@ -159,49 +165,17 @@ public class MainActivity extends Activity
 
 	private void populateLevelViews()
 	{
-		// clear all existing views
-		this.layout.removeAllViews();
-
-		// explode the view layout
-		LayoutInflater vi = (LayoutInflater) getApplicationContext()
-		        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-
+		// create a new adapter
+		CustomAdapter adapter = new CustomAdapter(application.getChannelSet().size());
 		for (int channel : application.getChannelSet())
 		{
 			// get the channel config
 			MeterConfig config = application.getConfigForChannel(channel);
-			// this will be populated below
-			int layoutId;
-			switch (config.getMeterType())
-			{
-				case NONE:
-					layoutId = R.layout.nolevel;
-					break;
-				case DIGITALPEAK:
-					layoutId = R.layout.digitalpeaklevel;
-					break;
-				case PPM:
-					layoutId = R.layout.ppmlevel;
-					break;
-				case VU:
-					layoutId = R.layout.vulevel;
-					break;
-				default:
-					LogWrapper.wtf(TAG, "unknown level type=",
-					        config.getMeterType());
-					return;
-			}
-			// inflate the layout for the audio view
-			ViewGroup viewGroup = (ViewGroup) vi.inflate(layoutId, null);
-			// find the display view
-			View view = viewGroup.findViewById(R.id.audio_view);
-			// remove it from the exploded layout
-			viewGroup.removeView(view);
-			// add the display view to the layout
-			this.layout.addView(view, channel - 1);
-			// add a listener
-			view.setOnClickListener(new LevelViewClickListener());
+			// tell the adapter about it 
+			adapter.addChannel(config);
 		}
+		// attach the adapter to the list to display our levels
+		this.listview.setAdapter(adapter);
 	}
 
 	private void updateLevelData()
@@ -215,10 +189,10 @@ public class MainActivity extends Activity
 			for (LevelDataRecord record : records.values())
 			{
 				// find the layout view
-				View view = layout.getChildAt(record.getChannel() - 1);
+				View view = listview.getChildAt(record.getChannel() - 1);
 				// find the audio level view
 				AudioLevelView audiolevel = (AudioLevelView) view
-				        .findViewById(R.id.audio_view);
+				        .findViewById(R.id.audiolevelview);
 				switch (record.getType())
 				{
 					case PPM:
@@ -287,10 +261,10 @@ public class MainActivity extends Activity
 			        R.layout.waitingforconnection, null);
 			// save a reference to the status textview
 			this.statusView = (TextView) layout
-			        .findViewById(R.id.status_textview);
+			        .findViewById(R.id.textview_status);
 			// update the peer name
 			TextView peerView = (TextView) layout
-			        .findViewById(R.id.peer_textview);
+			        .findViewById(R.id.textview_peer);
 			peerView.setText(application.getDevice().toString());
 			// set the layout for the dialog
 			builder.setView(layout);
@@ -396,18 +370,15 @@ public class MainActivity extends Activity
 		}
 	}
 
-	private class LevelViewClickListener implements View.OnClickListener
+	private class MainListViewItemClickListener implements OnItemClickListener
 	{
 
 		@Override
-		public void onClick(View view)
-		{
+        public void onItemClick(AdapterView<?> parent, View view, int position, long id)
+        {
 			LogWrapper.v(TAG,
-			        "MainActivity::LevelViewClickListener::onClick::run enter",
-			        "this=", this, "view=", view);
-
-			// figure out which view was clicked on
-			int index = layout.indexOfChild(view);
+			        "MainActivity::MainListViewItemClickListener::onItemClick enter",
+			        "this=", this, "parent=", parent, "view=", view, "position=", position, "id=", id);
 			// pop up the level dialog
 			AlertDialog.Builder builder = new AlertDialog.Builder(
 			        MainActivity.this);
@@ -417,7 +388,7 @@ public class MainActivity extends Activity
 			// populate which level we're currently set to
 			RadioGroup radioGroup = (RadioGroup) layout
 			        .findViewById(R.id.radiogroup_level);
-			MeterConfig config = application.getConfigForChannel(index + 1);
+			MeterConfig config = application.getConfigForChannel(position + 1);
 			switch (config.getMeterType())
 			{
 				case NONE:
@@ -647,5 +618,74 @@ public class MainActivity extends Activity
 			                "MainActivity::CancelConnectionClickListener::onClick exit");
 		}
 
+	}
+	
+	private class CustomAdapter extends BaseAdapter
+	{
+		private final List<MeterConfig> meterConfigList;
+		private final LayoutInflater vi = (LayoutInflater) getApplicationContext()
+        .getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		
+		public CustomAdapter(int count)
+		{		
+			this.meterConfigList = new ArrayList<MeterConfig>(count);
+		}
+		
+		public void addChannel(MeterConfig meterConfig)
+		{
+			this.meterConfigList.add(meterConfig);
+		}
+		
+		@Override
+        public int getCount()
+        {
+	        return this.meterConfigList.size();
+        }
+
+		@Override
+        public Object getItem(int position)
+        {
+	        return position;
+        }
+
+		@Override
+        public long getItemId(int position)
+        {
+	        return position;
+        }
+
+		@Override
+        public View getView(int position, View convertView, ViewGroup parent)
+        {
+
+			// get the channel config
+			MeterConfig config = application.getConfigForChannel(position + 1);
+			// this will be populated below
+			int layoutId;
+			switch (config.getMeterType())
+			{
+				case NONE:
+					layoutId = R.layout.nolevel;
+					break;
+				case DIGITALPEAK:
+					layoutId = R.layout.digitalpeaklevel;
+					break;
+				case PPM:
+					layoutId = R.layout.ppmlevel;
+					break;
+				case VU:
+					layoutId = R.layout.vulevel;
+					break;
+				default:
+					LogWrapper.wtf(TAG, "unknown level type=",
+					        config.getMeterType());
+					return null;
+			}
+			// inflate the layout for the audio view
+			View view = (ViewGroup) vi.inflate(layoutId, null);
+	        // done
+			return view;
+        }
+		
 	}
 }
