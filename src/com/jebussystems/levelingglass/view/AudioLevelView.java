@@ -231,6 +231,9 @@ public class AudioLevelView extends View
 		LogWrapper.v(TAG, "AudioLevelView::onSizeChanged enter", "this=", this,
 		        "width=", width, "height=", height, "oldwidth=", oldwidth,
 		        "oldheight=" + oldheight);
+		
+		LogWrapper.d(TAG, "sizing view for width=", width, "height=", height);
+		
 		// calculate the offsets
 		int xOffset = getPaddingLeft() + 5;
 		int yOffset = getPaddingTop();

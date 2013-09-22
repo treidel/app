@@ -123,7 +123,8 @@ public class StateMachine<S extends Enum<S>, E extends Enum<E>, O>
 		if (null == subHandlers)
 		{
 			LogWrapper.wtf(TAG, "handler not found for state=", state,
-			        "event=", event);
+			        "class=", state.getClass(), "event=", event, "class=",
+			        event.getClass());
 			throw new IllegalStateException("handler not found for S="
 			        + getStateClass() + " E=" + getEventClass() + " state="
 			        + state + " event=" + event);
@@ -132,7 +133,8 @@ public class StateMachine<S extends Enum<S>, E extends Enum<E>, O>
 		if (null == handler)
 		{
 			LogWrapper.wtf(TAG, "handler not found for state=", state,
-			        "event=", event);
+			        "class=", state.getClass(), "event=", event, "class=",
+			        event.getClass());
 			throw new IllegalStateException("handler not found for S="
 			        + getStateClass() + " E=" + getEventClass() + " state="
 			        + state + " event=" + event);

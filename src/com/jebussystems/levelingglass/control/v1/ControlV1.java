@@ -13,6 +13,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import junit.framework.Assert;
 import v1.V1;
 
+import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
@@ -126,7 +127,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		        LevelChangeMessage.getPoolInstance());
 		messageManager.registerPool(SPPStateMessage.class,
 		        SPPStateMessage.getPoolInstance());
-
+		messageManager.registerPool(SPPResponseMessage.class,
+		        SPPResponseMessage.getPoolInstance());
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -260,9 +262,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 
 		try
 		{
+			// slice up the data into a form protobuf can parse
+			ByteString data = ByteString.copyFrom(message.array(), 0,
+			        message.limit());
 			// decode the message
 			V1.ResponseOrNotification msg = V1.ResponseOrNotification
-			        .parseFrom(message.array());
+			        .parseFrom(data);
 			// figure out what type of message this is
 			switch (msg.getType())
 			{

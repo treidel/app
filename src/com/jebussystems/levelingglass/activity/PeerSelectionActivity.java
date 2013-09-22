@@ -2,6 +2,7 @@ package com.jebussystems.levelingglass.activity;
 
 import java.util.Set;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -161,7 +162,10 @@ public class PeerSelectionActivity extends Activity
 		}
 
 		// add all of the devices
-		this.adapter.addAll(devices);
+		for (BluetoothDevice device : devices)
+		{
+			this.adapter.add(device);
+		}
 	}
 
 	private void handleDeviceSelected(BluetoothDevice device)
@@ -199,7 +203,8 @@ public class PeerSelectionActivity extends Activity
 	private class ItemClickListener implements OnItemClickListener
 	{
 
-		@Override
+		@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+        @Override
 		public void onItemClick(AdapterView<?> parent, View view, int position,
 		        long id)
 		{
@@ -262,7 +267,8 @@ public class PeerSelectionActivity extends Activity
 		}
 	}
 
-	private class IntentReceiver extends BroadcastReceiver
+	@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+    private class IntentReceiver extends BroadcastReceiver
 	{
 		private final AlertDialog dialog;
 

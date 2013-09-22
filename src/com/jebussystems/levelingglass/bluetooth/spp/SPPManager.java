@@ -78,6 +78,8 @@ public class SPPManager implements SPPConnection.Listener,
 		        stateMachine.createDoNothingHandler());
 		stateMachine.addHandler(SPPState.DISCONNECTED, Event.SENDREQUEST,
 		        stateMachine.createDoNothingHandler());
+		stateMachine.addHandler(SPPState.CONNECTING, Event.CONNECT,
+		        stateMachine.createDoNothingHandler());
 		stateMachine.addHandler(SPPState.CONNECTING, Event.NOTIFY_CONNECTED,
 		        new NotifyConnectedHandler());
 		stateMachine.addHandler(SPPState.CONNECTING, Event.NOTIFY_DISCONNECTED,
@@ -385,7 +387,7 @@ public class SPPManager implements SPPConnection.Listener,
 			object.connection.close();
 			object.connection = null;
 			// start the reconnect timer using the 'static' reconnect message
-			object.reconnectMessage.init((BluetoothDevice) data);
+			object.reconnectMessage.init(((SPPConnection) data).getDevice());
 			object.timerHandler = object.executor.schedule(
 			        object.reconnectMessage, RETRY_TIMER_IN_SECS,
 			        TimeUnit.SECONDS);

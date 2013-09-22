@@ -1,6 +1,6 @@
 package com.jebussystems.levelingglass.app;
 
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -34,7 +34,7 @@ public class LevelingGlassApplication extends Application
 
 	private static LevelingGlassApplication instance = null;
 	private static final JSONSerializer meterConfigSerializer = new JSONSerializer();
-	private static final JSONDeserializer<MeterConfig> meterConfigDeserializer = new JSONDeserializer<MeterConfig>();
+	private static final JSONDeserializer<Collection<MeterConfig>> meterConfigDeserializer = new JSONDeserializer<Collection<MeterConfig>>();
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -90,17 +90,19 @@ public class LevelingGlassApplication extends Application
 			}
 		}
 		// fetch the stored level settings
-		Set<String> channels = preferences.getStringSet(LEVELS_KEY,
-		        new HashSet<String>());
-		for (String channel : channels)
+		String channels = preferences.getString(LEVELS_KEY, null);
+		if (null != channels)
 		{
 			// deserialize the meter config
-			MeterConfig config = meterConfigDeserializer.deserialize(channel);
+			Collection<MeterConfig> configs = (Collection<MeterConfig>) meterConfigDeserializer
+			        .deserialize(channels);
+			for (MeterConfig config : configs)
+			{
+				LogWrapper.d(TAG, "found channel=", config.getChannel());
 
-			LogWrapper.d(TAG, "found channel=", config.getChannel());
-
-			// put the level in the lookup
-			this.meterConfigMap.put(config.getChannel(), config);
+				// put the level in the lookup
+				this.meterConfigMap.put(config.getChannel(), config);
+			}
 		}
 
 		// set channel/level data
@@ -155,15 +157,11 @@ public class LevelingGlassApplication extends Application
 		// store the config
 		this.meterConfigMap.put(config.getChannel(), config);
 		// serialize the config for all levels
-		Set<String> channels = new HashSet<String>(this.meterConfigMap.size());
-		for (MeterConfig value : this.meterConfigMap.values())
-		{
-			String serializedObject = meterConfigSerializer.serialize(value);
-			channels.add(serializedObject);
-		}
+		Collection<MeterConfig> configs = this.meterConfigMap.values();
+		String serializedCollection = meterConfigSerializer.serialize(configs);
 		// save in the preferences
 		SharedPreferences.Editor editor = this.preferences.edit();
-		editor.putStringSet(LEVELS_KEY, channels);
+		editor.putString(LEVELS_KEY, serializedCollection);
 		editor.commit();
 
 		LogWrapper.v(TAG, "LevelingGlassApplication::setLevelForChannel exit");

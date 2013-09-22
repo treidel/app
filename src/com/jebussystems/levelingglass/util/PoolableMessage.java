@@ -51,15 +51,14 @@ public abstract class PoolableMessage implements Runnable
 	{
 		LogWrapper.v(TAG, "PoolableMessage::run enter", "this=", this);
 
-		// call the process method
-		process();
-
-		// get the pool
-		ObjectPool<PoolableMessage> pool = getPool();
-
-		// return the object
 		try
 		{
+			// call the process method
+			process();
+
+			// get the pool
+			ObjectPool<PoolableMessage> pool = getPool();
+
 			pool.returnObject(this);
 		}
 		catch (Exception e)

@@ -105,7 +105,7 @@ public class SPPConnection
 		// write the size of the request
 		this.writeStream.writeShort(request.limit());
 		// write the request
-		this.writeStream.write(request.array());
+		this.writeStream.write(request.array(), 0, request.limit());
 		// flush
 		this.writeStream.flush();
 		// release
@@ -188,6 +188,8 @@ public class SPPConnection
 						ByteBuffer buffer = getBufferPool().borrowObject();
 						Assert.assertTrue(buffer.capacity() >= length);
 						readStream.read(buffer.array(), 0, length);
+						// indicate how much data is available
+						buffer.limit(length);
 						// call the handler
 						messageHandler.handleSPPMessage(buffer);
 					}
