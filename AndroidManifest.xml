@@ -30,7 +30,7 @@
             android:theme="@android:style/Theme.NoTitleBar" >
         </activity>
         <activity
-            android:name=".activity.WaitingForConnectionActivity"
+            android:name=".activity.LevelSelectionActivity"
             android:theme="@android:style/Theme.NoTitleBar" >
         </activity>
         <activity

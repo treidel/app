@@ -9,6 +9,7 @@ import android.app.AlertDialog;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,22 +18,19 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
-import android.widget.RadioGroup;
-import android.widget.RadioGroup.OnCheckedChangeListener;
-import android.widget.SeekBar;
-import android.widget.SeekBar.OnSeekBarChangeListener;
 import android.widget.TextView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
 import com.jebussystems.levelingglass.control.LevelDataRecord;
 import com.jebussystems.levelingglass.control.MeterConfig;
-import com.jebussystems.levelingglass.control.MeterType;
 import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
 import com.jebussystems.levelingglass.control.VULevelDataRecord;
 import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 import com.jebussystems.levelingglass.view.AudioLevelView;
+
+import flexjson.JSONSerializer;
 
 public class MainActivity extends Activity
 {
@@ -45,6 +43,8 @@ public class MainActivity extends Activity
 	// /////////////////////////////////////////////////////////////////////////
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
+	private static final JSONSerializer meterConfigSerializer = new JSONSerializer();
+
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -222,30 +222,6 @@ public class MainActivity extends Activity
 		}
 	}
 
-	private void updateSelectionDialog(ViewGroup layout, int checkedId)
-	{
-		// find the hold time layout
-		View holdtimeLayout = layout.findViewById(R.id.layout_holdtime);
-
-		switch (checkedId)
-		{
-			case R.id.radio_levelselection_none:
-			case R.id.radio_levelsection_vu:
-				// they selected none or VU so hide the hold time views
-				holdtimeLayout.setVisibility(View.INVISIBLE);
-				break;
-
-			case R.id.radio_levelsection_digitalpeak:
-			case R.id.radio_levelsection_ppm:
-				// they selected digital or PPM so reveal the hold time views
-				holdtimeLayout.setVisibility(View.VISIBLE);
-				break;
-			default:
-				LogWrapper.wtf(TAG, "unknown radio button id=", checkedId);
-				return;
-		}
-	}
-
 	// /////////////////////////////////////////////////////////////////////////
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
@@ -386,224 +362,19 @@ public class MainActivity extends Activity
 			                "MainActivity::MainListViewItemClickListener::onItemClick enter",
 			                "this=", this, "parent=", parent, "view=", view,
 			                "position=", position, "id=", id);
-			// pop up the level dialog
-			AlertDialog.Builder builder = new AlertDialog.Builder(
-			        MainActivity.this);
-			LayoutInflater inflater = getLayoutInflater();
-			ViewGroup layout = (ViewGroup) inflater.inflate(
-			        R.layout.levelselection, null);
-			// populate which level we're currently set to
-			RadioGroup radioGroup = (RadioGroup) layout
-			        .findViewById(R.id.radiogroup_level);
+			
+			// fetch the config
 			MeterConfig config = application.getConfigForChannel(position + 1);
-			switch (config.getMeterType())
-			{
-				case NONE:
-					radioGroup.check(R.id.radio_levelselection_none);
-					break;
-				case PPM:
-					radioGroup.check(R.id.radio_levelsection_ppm);
-					break;
-				case DIGITALPEAK:
-					radioGroup.check(R.id.radio_levelsection_digitalpeak);
-					break;
-				case VU:
-					radioGroup.check(R.id.radio_levelsection_vu);
-					break;
-				default:
-					LogWrapper
-					        .wtf(TAG, "unknown level=", config.getMeterType());
-					return;
-			}
-			// add a listener
-			radioGroup
-			        .setOnCheckedChangeListener(new LevelRadioCheckedChangeListener(
-			                layout));
-			// update the dialog
-			updateSelectionDialog(layout, radioGroup.getCheckedRadioButtonId());
-			// add a listener for the hold time seekbar
-			SeekBar holdtimeSeekbar = (SeekBar) layout
-			        .findViewById(R.id.seekbar_holdtime);
-			TextView holdtimeTextview = (TextView) layout
-			        .findViewById(R.id.textview_holdtime);
-			holdtimeSeekbar
-			        .setOnSeekBarChangeListener(new HoldTimeSeekbarChangeListener(
-			                holdtimeTextview));
-			if (null != config.getHoldtime())
-			{
-				holdtimeSeekbar.setProgress(config.getHoldtime());
-			}
-			// finish popping up the dialog
-			builder.setView(layout);
-			builder.setPositiveButton(getString(android.R.string.ok),
-			        new LevelRadioClickListener(layout, config.getChannel()));
-			AlertDialog dialog = builder.create();
-			dialog.show();
-
+			
+			// start the level selection activity
+			Intent intent = new Intent(MainActivity.this, LevelSelectionActivity.class);
+			String serialized = meterConfigSerializer.serialize(config);
+			intent.putExtra(LevelSelectionActivity.METER_CONFIG_SERIALIZED_JSON, serialized);
+			startActivity(intent);
+			
 			LogWrapper.v(TAG,
 			        "MainActivity::LevelViewClickListener::onClick::run exit");
 		}
-	}
-
-	private class LevelRadioClickListener implements
-	        DialogInterface.OnClickListener
-	{
-		private final ViewGroup layout;
-		private final int channel;
-
-		public LevelRadioClickListener(ViewGroup layout, int channel)
-		{
-			this.layout = layout;
-			this.channel = channel;
-		}
-
-		@Override
-		public void onClick(DialogInterface dialog, int ignore)
-		{
-			LogWrapper
-			        .v(TAG,
-			                "MainActivity::LevelRadioClickListener::onClick::run enter",
-			                "this=", this, "dialog=", dialog, "ignore=", ignore);
-
-			// fetch the radio group
-			RadioGroup group = (RadioGroup) layout
-			        .findViewById(R.id.radiogroup_level);
-
-			// get the selected button
-			int id = group.getCheckedRadioButtonId();
-			// convert to a type
-			MeterType type = convertRadioIdToMeterType(id);
-			// assume no hold time for now
-			Integer holdtime = null;
-			// for certain meter types we have one
-			switch (type)
-			{
-				case DIGITALPEAK:
-				case PPM:
-				{
-					// extract the hold time
-					SeekBar seekBar = (SeekBar) layout
-					        .findViewById(R.id.seekbar_holdtime);
-					holdtime = seekBar.getProgress();
-				}
-					break;
-				default:
-					LogWrapper.v(TAG, "no hold time needed for type=", type);
-					break;
-			}
-
-			// create the meter config object
-			MeterConfig config = new MeterConfig(channel, type);
-			// only see the hold time if it isn't zero
-			if ((null != holdtime) && (0 != holdtime))
-			{
-				config.setHoldtime(holdtime);
-			}
-
-			// store the meter config
-			application.setConfigForChannel(config);
-
-			// set the config
-			ControlV1.getInstance().notifyLevelConfigChange();
-
-			// force a recreation of all level views
-			populateLevelViews();
-
-			LogWrapper.v(TAG,
-			        "MainActivity::LevelRadioClickListener::onClick::run exit");
-		}
-
-		private MeterType convertRadioIdToMeterType(int id)
-		{
-			switch (id)
-			{
-				case R.id.radio_levelselection_none:
-					return MeterType.NONE;
-				case R.id.radio_levelsection_digitalpeak:
-					return MeterType.DIGITALPEAK;
-				case R.id.radio_levelsection_ppm:
-					return MeterType.PPM;
-				case R.id.radio_levelsection_vu:
-					return MeterType.VU;
-				default:
-					LogWrapper.wtf(TAG, "unknown radio button id=", id);
-					return null;
-			}
-		}
-	}
-
-	private class LevelRadioCheckedChangeListener implements
-	        OnCheckedChangeListener
-	{
-		private final ViewGroup layout;
-
-		public LevelRadioCheckedChangeListener(ViewGroup layout)
-		{
-			this.layout = layout;
-		}
-
-		@Override
-		public void onCheckedChanged(RadioGroup group, int id)
-		{
-			LogWrapper
-			        .v(TAG,
-			                "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged enter",
-			                "this=", this, "group=", group, "id=", id);
-			// update the selection dialog
-			updateSelectionDialog(layout, id);
-			LogWrapper
-			        .v(TAG,
-			                "MainActivity::LevelRadioCheckedChangeListener::onCheckedChanged exit");
-		}
-
-	}
-
-	private class HoldTimeSeekbarChangeListener implements
-	        OnSeekBarChangeListener
-	{
-		private final TextView textView;
-
-		public HoldTimeSeekbarChangeListener(TextView textView)
-		{
-			this.textView = textView;
-		}
-
-		@Override
-		public void onProgressChanged(SeekBar seekBar, int progress,
-		        boolean fromUser)
-		{
-			LogWrapper
-			        .v(TAG,
-			                "MainActivity::HoldTimeSeekbarChangeListener::onProgressChanged enter",
-			                "this=", this, "seekBar=", seekBar, "progress=",
-			                progress, "fromUser=", fromUser);
-			// update the label
-			if (0 == progress)
-			{
-				this.textView.setText(MainActivity.this.getResources()
-				        .getString(R.string.levelselection_off));
-			}
-			else
-			{
-				this.textView.setText(String.valueOf(progress));
-			}
-			LogWrapper
-			        .v(TAG,
-			                "MainActivity::HoldTimeSeekbarChangeListener::onProgressChanged exit");
-		}
-
-		@Override
-		public void onStartTrackingTouch(SeekBar seekBar)
-		{
-			// ignore
-		}
-
-		@Override
-		public void onStopTrackingTouch(SeekBar seekBar)
-		{
-			// ignore
-		}
-
 	}
 
 	private class CancelConnectionClickListener implements
