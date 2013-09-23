@@ -35,7 +35,7 @@ public class AudioLevelView extends View
 	private static final int DEFAULT_WARNING_COLOR = Color.YELLOW;
 	private static final int DEFAULT_ERROR_COLOR = Color.RED;
 	private static final int DEFAULT_HOLD_COLOR = Color.GRAY;
-	private static final int DEFAULT_MARK_COLOR = Color.DKGRAY;
+	private static final int DEFAULT_MARK_COLOR = Color.WHITE;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// types
