@@ -10,9 +10,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.os.Build;
 import android.os.ParcelUuid;
 
 import com.jebussystems.levelingglass.util.LogWrapper;
@@ -289,7 +291,8 @@ public class SPPManager implements SPPConnection.Listener,
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
 
-	private boolean checkDeviceForCompatibility(BluetoothDevice device)
+	@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+    private boolean checkDeviceForCompatibility(BluetoothDevice device)
 	{
 		for (ParcelUuid parcelUUID : device.getUuids())
 		{
@@ -317,7 +320,7 @@ public class SPPManager implements SPPConnection.Listener,
 			{
 				// create the socket
 				BluetoothSocket socket = ((BluetoothDevice) data)
-				        .createRfcommSocketToServiceRecord(object.uuid);
+				        .createInsecureRfcommSocketToServiceRecord(object.uuid);
 				// create the connection
 				object.connection = new SPPConnection(object, socket,
 				        object.messageHandler);

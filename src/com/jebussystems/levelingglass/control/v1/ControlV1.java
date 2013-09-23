@@ -308,6 +308,26 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		LogWrapper.v(TAG, "ControlV1::sendLevelRequest enter", "this=", this,
 		        "channel=", channel, "config=", config);
 
+		// setup the level data for this channel
+		switch (config.getMeterType())
+		{
+			case NONE:
+				this.levelDataRecords.remove(config.getChannel());
+				break;
+			case DIGITALPEAK:
+			case PPM:
+				this.levelDataRecords.put(config.getChannel(),
+				        new PeakLevelDataRecord(config.getChannel()));
+				break;
+			case VU:
+				this.levelDataRecords.put(config.getChannel(),
+				        new VULevelDataRecord(config.getChannel()));
+				break;
+			default:
+				LogWrapper.wtf(TAG, "invalid type=", config.getMeterType());
+				return;
+		}
+
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
 		        .newBuilder();
@@ -449,8 +469,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					}
 					// get the record
 					LevelDataRecord internalRecord = this.levelDataRecords
-					        .get(configuredLevel);
-
+					        .get(externalRecord.getChannel());
+					Assert.assertNotNull(internalRecord);
 					synchronized (internalRecord)
 					{
 						switch (configuredLevel)

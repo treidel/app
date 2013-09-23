@@ -6,11 +6,13 @@ import java.util.Map;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,7 +46,6 @@ public class MainActivity extends Activity
 	// class variables
 	// /////////////////////////////////////////////////////////////////////////
 	private static final JSONSerializer meterConfigSerializer = new JSONSerializer();
-
 
 	// /////////////////////////////////////////////////////////////////////////
 	// object variables
@@ -253,6 +254,20 @@ public class MainActivity extends Activity
 			builder.setCancelable(true);
 			// create + run the dialog
 			this.dialog = builder.create();
+			this.dialog.setOnKeyListener(new Dialog.OnKeyListener()
+			{
+
+				@Override
+				public boolean onKey(DialogInterface arg0, int keyCode,
+				        KeyEvent event)
+				{
+					if (keyCode == KeyEvent.KEYCODE_BACK)
+					{
+						finish();
+					}
+					return true;
+				}
+			});
 		}
 
 		public void refresh()
@@ -362,16 +377,19 @@ public class MainActivity extends Activity
 			                "MainActivity::MainListViewItemClickListener::onItemClick enter",
 			                "this=", this, "parent=", parent, "view=", view,
 			                "position=", position, "id=", id);
-			
+
 			// fetch the config
 			MeterConfig config = application.getConfigForChannel(position + 1);
-			
+
 			// start the level selection activity
-			Intent intent = new Intent(MainActivity.this, LevelSelectionActivity.class);
+			Intent intent = new Intent(MainActivity.this,
+			        LevelSelectionActivity.class);
 			String serialized = meterConfigSerializer.serialize(config);
-			intent.putExtra(LevelSelectionActivity.METER_CONFIG_SERIALIZED_JSON, serialized);
+			intent.putExtra(
+			        LevelSelectionActivity.METER_CONFIG_SERIALIZED_JSON,
+			        serialized);
 			startActivity(intent);
-			
+
 			LogWrapper.v(TAG,
 			        "MainActivity::LevelViewClickListener::onClick::run exit");
 		}

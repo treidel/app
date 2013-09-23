@@ -11,11 +11,10 @@ import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
 
-import com.jebussystems.levelingglass.util.LogWrapper;
-
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.util.Log;
+
+import com.jebussystems.levelingglass.util.LogWrapper;
 
 public class SPPConnection
 {
@@ -195,7 +194,7 @@ public class SPPConnection
 					}
 					catch (Exception e)
 					{
-						Log.wtf(TAG, e.getMessage());
+						LogWrapper.wtf(TAG, e.getMessage());
 					}
 				}
 			}
