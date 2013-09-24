@@ -32,7 +32,7 @@ public class LogWrapper
 		}
 		// generate the log
 		String log = concatenateArgs(args);
-		Log.wtf(tag, log);
+		Log.d(tag, log);
 	}
 
 	public static void w(String tag, Object... args)
@@ -44,7 +44,7 @@ public class LogWrapper
 		}
 		// generate the log
 		String log = concatenateArgs(args);
-		Log.wtf(tag, log);
+		Log.w(tag, log);
 	}
 
 	public static void e(String tag, Object... args)
@@ -56,7 +56,7 @@ public class LogWrapper
 		}
 		// generate the log
 		String log = concatenateArgs(args);
-		Log.wtf(tag, log);
+		Log.e(tag, log);
 	}
 
 	public static void wtf(String tag, Object... args)

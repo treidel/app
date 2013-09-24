@@ -44,6 +44,7 @@ public class LevelSelectionActivity extends Activity
 	private MeterConfig config;
 	private RadioGroup radioGroupLevel;
 	private SeekBar seekBarHoldTime;
+	private TextView textViewHoldTime;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -76,7 +77,7 @@ public class LevelSelectionActivity extends Activity
 		// get references to the views in the layout
 		this.radioGroupLevel = (RadioGroup) findViewById(R.id.radiogroup_level);
 		this.seekBarHoldTime = (SeekBar) findViewById(R.id.seekbar_holdtime);
-		TextView textViewHoldTime = (TextView) findViewById(R.id.textview_holdtime);
+		this.textViewHoldTime = (TextView) findViewById(R.id.textview_holdtime);
 		ViewGroup layout = (ViewGroup) findViewById(R.id.layout_levelsection);
 		Button buttonOK = (Button) findViewById(R.id.button_ok);
 		Button buttonCancel = (Button) findViewById(R.id.button_cancel);
@@ -118,15 +119,16 @@ public class LevelSelectionActivity extends Activity
 		}
 
 		// update the hold time label
+		updateHoldTimeLabel(this.seekBarHoldTime.getProgress());
+		// update the visible stuff
 		updateSelectionDialog(layout,
-		        this.radioGroupLevel.getCheckedRadioButtonId());
+		        this.radioGroupLevel.getCheckedRadioButtonId());		
 
 		// add the listeners
 		buttonOK.setOnClickListener(new OkButtonListener());
 		buttonCancel.setOnClickListener(new CancelButtonListener());
 		this.seekBarHoldTime
-		        .setOnSeekBarChangeListener(new HoldTimeSeekbarChangeListener(
-		                textViewHoldTime));
+		        .setOnSeekBarChangeListener(new HoldTimeSeekbarChangeListener());
 		this.radioGroupLevel
 		        .setOnCheckedChangeListener(new LevelRadioCheckedChangeListener(
 		                layout));
@@ -148,6 +150,20 @@ public class LevelSelectionActivity extends Activity
 	// /////////////////////////////////////////////////////////////////////////
 	// private methods
 	// /////////////////////////////////////////////////////////////////////////
+
+	private void updateHoldTimeLabel(int progress)
+	{
+		// update the label
+		if (0 == progress)
+		{
+			this.textViewHoldTime.setText(LevelSelectionActivity.this.getResources()
+			        .getString(R.string.levelselection_off));
+		}
+		else
+		{
+			this.textViewHoldTime.setText(String.valueOf(progress));
+		}
+	}
 
 	private void updateSelectionDialog(ViewGroup layout, int checkedId)
 	{
@@ -198,13 +214,6 @@ public class LevelSelectionActivity extends Activity
 	private class HoldTimeSeekbarChangeListener implements
 	        OnSeekBarChangeListener
 	{
-		private final TextView textView;
-
-		public HoldTimeSeekbarChangeListener(TextView textView)
-		{
-			this.textView = textView;
-		}
-
 		@Override
 		public void onProgressChanged(SeekBar seekBar, int progress,
 		        boolean fromUser)
@@ -215,15 +224,7 @@ public class LevelSelectionActivity extends Activity
 			                "this=", this, "seekBar=", seekBar, "progress=",
 			                progress, "fromUser=", fromUser);
 			// update the label
-			if (0 == progress)
-			{
-				this.textView.setText(LevelSelectionActivity.this
-				        .getResources().getString(R.string.levelselection_off));
-			}
-			else
-			{
-				this.textView.setText(String.valueOf(progress));
-			}
+			updateHoldTimeLabel(progress);
 			LogWrapper
 			        .v(TAG,
 			                "LevelSelectionActivity::HoldTimeSeekbarChangeListener::onProgressChanged exit");
@@ -249,6 +250,9 @@ public class LevelSelectionActivity extends Activity
 		@Override
 		public void onClick(View view)
 		{
+			LogWrapper.v(TAG,
+			        "LeveSelectionActivity::OkButtonListener::onClick enter",
+			        "this=", this, "view=", view);
 			// extract the data from the views
 			MeterType meterType = convertRadioIdToMeterType(radioGroupLevel
 			        .getCheckedRadioButtonId());
@@ -270,6 +274,8 @@ public class LevelSelectionActivity extends Activity
 
 			// done
 			finish();
+			LogWrapper.v(TAG,
+			        "LeveSelectionActivity::OkButtonListener::onClick exit");
 		}
 	}
 
@@ -279,8 +285,15 @@ public class LevelSelectionActivity extends Activity
 		@Override
 		public void onClick(View view)
 		{
+			LogWrapper
+			        .v(TAG,
+			                "LeveSelectionActivity::CancelButtonListener::onClick enter",
+			                "this=", this, "view=", view);
 			// just close - don't update
 			finish();
+			LogWrapper
+			        .v(TAG,
+			                "LeveSelectionActivity::CancelButtonListener::onClick exit");
 		}
 	}
 
