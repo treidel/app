@@ -26,7 +26,7 @@ public class PeakLevelDataRecord extends LevelDataRecord
 		return holdLevelInDB;
 	}
 
-	public void setHoldLevelInDB(float holdLevelInDB)
+	public void setHoldLevelInDB(Float holdLevelInDB)
 	{
 		this.holdLevelInDB = holdLevelInDB;
 	}
