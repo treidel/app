@@ -150,7 +150,8 @@ public class SPPManager implements SPPConnection.Listener,
 		        .contains(device))
 		{
 			// make sure the peer supports our service
-			if (true == checkDeviceForCompatibility(device))
+			if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+			        || (true == checkDeviceForCompatibility(device)))
 			{
 				// make sure we're disconnected
 				disconnect();
@@ -292,7 +293,7 @@ public class SPPManager implements SPPConnection.Listener,
 	// /////////////////////////////////////////////////////////////////////////
 
 	@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
-    private boolean checkDeviceForCompatibility(BluetoothDevice device)
+	private boolean checkDeviceForCompatibility(BluetoothDevice device)
 	{
 		for (ParcelUuid parcelUUID : device.getUuids())
 		{
@@ -416,7 +417,7 @@ public class SPPManager implements SPPConnection.Listener,
 			{
 				// create the socket
 				BluetoothSocket socket = ((BluetoothDevice) data)
-				        .createRfcommSocketToServiceRecord(object.uuid);
+				        .createInsecureRfcommSocketToServiceRecord(object.uuid);
 				// trigger a connection
 				object.connection = new SPPConnection(object, socket,
 				        object.messageHandler);
