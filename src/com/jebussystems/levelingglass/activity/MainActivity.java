@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import junit.framework.Assert;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -19,6 +21,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -122,9 +125,6 @@ public class MainActivity extends Activity
 		// do the layout
 		populateLevelViews();
 
-		// try the populate the level views
-		updateLevelData();
-
 		LogWrapper.v(TAG, "MainActivity::onStart exit");
 	}
 
@@ -179,6 +179,8 @@ public class MainActivity extends Activity
 		}
 		// attach the adapter to the list to display our levels
 		this.listview.setAdapter(adapter);
+		// force the list to the last (phony) entry
+		this.listview.setSelection(adapter.getCount() - 1);
 	}
 
 	private void updateLevelData()
@@ -195,6 +197,7 @@ public class MainActivity extends Activity
 				{
 					// find the layout view
 					View view = listview.getChildAt(record.getChannel() - 1);
+					Assert.assertNotNull(view);
 					// find the audio level view
 					AudioLevelView audiolevel = (AudioLevelView) view
 					        .findViewById(R.id.audiolevelview);
@@ -378,17 +381,23 @@ public class MainActivity extends Activity
 			                "this=", this, "parent=", parent, "view=", view,
 			                "position=", position, "id=", id);
 
-			// fetch the config
-			MeterConfig config = application.getConfigForChannel(position + 1);
+			// ignore the click if this is the 'fake' entry
+			if (position <= application.getChannelSet().size())
+			{
 
-			// start the level selection activity
-			Intent intent = new Intent(MainActivity.this,
-			        LevelSelectionActivity.class);
-			String serialized = meterConfigSerializer.serialize(config);
-			intent.putExtra(
-			        LevelSelectionActivity.METER_CONFIG_SERIALIZED_JSON,
-			        serialized);
-			startActivity(intent);
+				// fetch the config
+				MeterConfig config = application
+				        .getConfigForChannel(position + 1);
+
+				// start the level selection activity
+				Intent intent = new Intent(MainActivity.this,
+				        LevelSelectionActivity.class);
+				String serialized = meterConfigSerializer.serialize(config);
+				intent.putExtra(
+				        LevelSelectionActivity.METER_CONFIG_SERIALIZED_JSON,
+				        serialized);
+				startActivity(intent);
+			}
 
 			LogWrapper.v(TAG,
 			        "MainActivity::LevelViewClickListener::onClick::run exit");
@@ -435,7 +444,8 @@ public class MainActivity extends Activity
 		@Override
 		public int getCount()
 		{
-			return this.meterConfigList.size();
+			// we add +1 to account for the empty last entry
+			return this.meterConfigList.size() + 1;
 		}
 
 		@Override
@@ -453,33 +463,47 @@ public class MainActivity extends Activity
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent)
 		{
-
-			// get the channel config
-			MeterConfig config = application.getConfigForChannel(position + 1);
-			// this will be populated below
-			int layoutId;
-			switch (config.getMeterType())
+			LogWrapper.v(TAG, "MainActivity::CustomAdapter::getView enter",
+			        "this=", this, "position=", position, "convertView=",
+			        convertView, "parent=", parent);
+			// handle the request to create the special empty view
+			View view;
+			if (position == this.meterConfigList.size())
 			{
-				case NONE:
-					layoutId = R.layout.nolevel;
-					break;
-				case DIGITALPEAK:
-					layoutId = R.layout.digitalpeaklevel;
-					break;
-				case PPM:
-					layoutId = R.layout.ppmlevel;
-					break;
-				case VU:
-					layoutId = R.layout.vulevel;
-					break;
-				default:
-					LogWrapper.wtf(TAG, "unknown level type=",
-					        config.getMeterType());
-					return null;
+				view = new LinearLayout(getApplicationContext());
 			}
-			// inflate the layout for the audio view
-			View view = (ViewGroup) vi.inflate(layoutId, null);
+			else
+			{
+				// get the channel config
+				MeterConfig config = application
+				        .getConfigForChannel(position + 1);
+				// this will be populated below
+				int layoutId;
+				switch (config.getMeterType())
+				{
+					case NONE:
+						layoutId = R.layout.nolevel;
+						break;
+					case DIGITALPEAK:
+						layoutId = R.layout.digitalpeaklevel;
+						break;
+					case PPM:
+						layoutId = R.layout.ppmlevel;
+						break;
+					case VU:
+						layoutId = R.layout.vulevel;
+						break;
+					default:
+						LogWrapper.wtf(TAG, "unknown level type=",
+						        config.getMeterType());
+						return null;
+				}
+				// inflate the layout for the audio view
+				view = (ViewGroup) vi.inflate(layoutId, null);
+			}
 			// done
+			LogWrapper.v(TAG, "MainActivity::CustomAdapter::getView exit",
+			        "view=", view);
 			return view;
 		}
 

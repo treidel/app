@@ -14,8 +14,6 @@
         android:padding="2dp"
         custom:ceiling="0"
         custom:floor="-30"
-        custom:hold="-5"
-        custom:hold_color="@android:color/darker_gray"
-        custom:level="-10" />
+        custom:marks="0,-5,-10,-15,-20,-25,-30" />
 
 </LinearLayout>

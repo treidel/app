@@ -14,6 +14,8 @@
         android:padding="2dp"
         custom:ceiling="3"
         custom:floor="-20"
-        custom:level="0" />
+        custom:marks="3,0,-5,-10,-20"
+        custom:ok="0"
+        custom:warning="1"/>
 
 </LinearLayout>
