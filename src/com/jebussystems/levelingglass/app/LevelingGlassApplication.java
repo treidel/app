@@ -9,12 +9,14 @@ import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import com.jebussystems.levelingglass.control.config.MeterConfig;
 import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 
 import flexjson.JSONDeserializer;
+import flexjson.JSONException;
 import flexjson.JSONSerializer;
 
 public class LevelingGlassApplication extends Application
@@ -57,7 +59,7 @@ public class LevelingGlassApplication extends Application
 	{
 		return instance;
 	}
-	
+
 	public int incrementSplashCount()
 	{
 		splashCount++;
@@ -75,6 +77,7 @@ public class LevelingGlassApplication extends Application
 
 		// create the preferences object
 		this.preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE);
+
 		// fetch the stored device
 		String address = preferences.getString(DEVICE_KEY, null);
 		if (null != address)
@@ -100,15 +103,23 @@ public class LevelingGlassApplication extends Application
 		String channels = preferences.getString(LEVELS_KEY, null);
 		if (null != channels)
 		{
-			// deserialize the meter config
-			Collection<MeterConfig> configs = (Collection<MeterConfig>) meterConfigDeserializer
-			        .deserialize(channels);
-			for (MeterConfig config : configs)
+			try
 			{
-				LogWrapper.d(TAG, "found channel=", config.getChannel());
+				// deserialize the meter config
+				Collection<MeterConfig> configs = (Collection<MeterConfig>) meterConfigDeserializer
+				        .deserialize(channels);
+				for (MeterConfig config : configs)
+				{
+					LogWrapper.d(TAG, "found channel=", config.getChannel());
 
-				// put the level in the lookup
-				this.meterConfigMap.put(config.getChannel(), config);
+					// put the level in the lookup
+					this.meterConfigMap.put(config.getChannel(), config);
+				}
+			}
+			catch (JSONException e)
+			{
+				Log.w(TAG, "unable to parse stored meter config - ignoring");
+				this.meterConfigMap.clear();
 			}
 		}
 
