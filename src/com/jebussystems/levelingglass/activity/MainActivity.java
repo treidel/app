@@ -531,29 +531,55 @@ public class MainActivity extends Activity
 			// get the adapter
 			CustomAdapter adapter = (CustomAdapter) listview.getAdapter();
 
-			switch (keyCode)
+			// we only care about the 'up' part of the button press
+			if (KeyEvent.ACTION_UP == event.getAction())
 			{
-				case KeyEvent.KEYCODE_DPAD_RIGHT:
-					// ignore this if we haven't selected an actual meter
-					if (listview.getSelectedItemPosition() < adapter.getCount())
-					{
-						// consume this event
-						result = true;
-					}
-					break;
+				switch (keyCode)
+				{
+					case KeyEvent.KEYCODE_DPAD_RIGHT:
+						// ignore this if we haven't selected an actual meter
+						if ((listview.getSelectedItemPosition() + 1) < adapter
+						        .getCount())
+						{
+							// get the config for the level
+							MeterConfig config = application
+							        .getConfigForChannel(listview
+							                .getSelectedItemPosition() + 1);
+							// see if this meter supports trim
+							if (true == config instanceof TrimConfig)
+							{
+								// increase the trim
+								((TrimConfig) config).addTrimIncrement();
+							}
+							// consume this event
+							result = true;
+						}
+						break;
 
-				case KeyEvent.KEYCODE_DPAD_LEFT:
-					// ignore this if we haven't selected an actual meter
-					if (listview.getSelectedItemPosition() < adapter.getCount())
-					{
-						// consume this event
-						result = true;
-					}
+					case KeyEvent.KEYCODE_DPAD_LEFT:
+						// ignore this if we haven't selected an actual meter
+						if ((listview.getSelectedItemPosition() + 1) < adapter
+						        .getCount())
+						{
+							// get the config for the level
+							MeterConfig config = application
+							        .getConfigForChannel(listview
+							                .getSelectedItemPosition() + 1);
+							// see if this meter supports trim
+							if (true == config instanceof TrimConfig)
+							{
+								// decrase the trim
+								((TrimConfig) config).subtractTrimIncrement();
+							}
+							// consume this event
+							result = true;
+						}
 
-				default:
-					// ignore
-					LogWrapper.d(TAG, "ignoring key press=", event);
-					break;
+					default:
+						// ignore
+						LogWrapper.d(TAG, "ignoring key press=", event);
+						break;
+				}
 			}
 			// done
 			LogWrapper.v(TAG, "MainActivity::KeyPressListener::onKey exit",
