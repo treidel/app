@@ -55,6 +55,9 @@ public class LevelDataRecordFactory
 			case VU:
 				record = new VUDataRecord(channel);
 				break;
+			case NONE:
+				// do nothing
+				break;
 			default:
 				LogWrapper.wtf(TAG, "unknown meter type=", meterType);
 				break;
