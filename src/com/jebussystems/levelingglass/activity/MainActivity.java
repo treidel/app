@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 import junit.framework.Assert;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -17,6 +16,7 @@ import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnKeyListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
@@ -27,10 +27,10 @@ import android.widget.TextView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
-import com.jebussystems.levelingglass.control.LevelDataRecord;
-import com.jebussystems.levelingglass.control.MeterConfig;
-import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
-import com.jebussystems.levelingglass.control.VULevelDataRecord;
+import com.jebussystems.levelingglass.control.config.MeterConfig;
+import com.jebussystems.levelingglass.control.config.TrimConfig;
+import com.jebussystems.levelingglass.control.records.LevelDataRecord;
+import com.jebussystems.levelingglass.control.records.PeakDataRecord;
 import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 import com.jebussystems.levelingglass.view.AudioLevelView;
@@ -102,6 +102,8 @@ public class MainActivity extends Activity
 			// add an item click listener
 			this.listview
 			        .setOnItemClickListener(new MainListViewItemClickListener());
+			// add a key press listener
+			this.listview.setOnKeyListener(new KeyPressListener());
 		}
 		LogWrapper.v(TAG, "MainActivity::onCreate exit");
 
@@ -185,7 +187,7 @@ public class MainActivity extends Activity
 
 	private void updateLevelData()
 	{
-		// get the control object and add ourselves as a listener
+		// get the control object
 		ControlV1 control = ControlV1.getInstance();
 		// query the level data from the control object
 		Map<Integer, LevelDataRecord> records = control.getLevelDataRecord();
@@ -201,26 +203,32 @@ public class MainActivity extends Activity
 					// find the audio level view
 					AudioLevelView audiolevel = (AudioLevelView) view
 					        .findViewById(R.id.audiolevelview);
-					switch (record.getType())
+					// retrieve the current level
+					float level = record.getLevel();
+					// find the config
+					MeterConfig config = application.getConfigForChannel(record
+					        .getChannel());
+
+					// see if this record provides a hold time
+					Float hold = null;
+					if (true == record instanceof PeakDataRecord)
 					{
-						case PPM:
-						case DIGITALPEAK:
-							// set the level
-							audiolevel.setLevel(((PeakLevelDataRecord) record)
-							        .getPeakLevelInDB());
-							audiolevel.setHold(((PeakLevelDataRecord) record)
-							        .getHoldLevelInDB());
-							break;
-						case VU:
-							// set the level
-							audiolevel.setLevel(((VULevelDataRecord) record)
-							        .getVUInUnits());
-							break;
-						default:
-							LogWrapper.wtf(TAG, "unexpected level=",
-							        record.getType());
-							return;
+						hold = ((PeakDataRecord) record).getHold();
 					}
+
+					// if this meter type supports trim then adjust
+					if (true == config instanceof TrimConfig)
+					{
+						level += ((TrimConfig) config).getTrim();
+						if (null != hold)
+						{
+							hold += ((TrimConfig) config).getTrim();
+						}
+					}
+
+					// populate the audio level view
+					audiolevel.setLevel(level);
+					audiolevel.setHold(hold);
 				}
 			}
 		}
@@ -230,7 +238,7 @@ public class MainActivity extends Activity
 	// inner classes
 	// /////////////////////////////////////////////////////////////////////////
 
-	private class ControlEventListener implements ControlV1.EventListener
+	private final class ControlEventListener implements ControlV1.EventListener
 	{
 		private final AlertDialog dialog;
 		private final TextView statusView;
@@ -261,7 +269,7 @@ public class MainActivity extends Activity
 			{
 
 				@Override
-				public boolean onKey(DialogInterface arg0, int keyCode,
+				public boolean onKey(DialogInterface dialog, int keyCode,
 				        KeyEvent event)
 				{
 					if (keyCode == KeyEvent.KEYCODE_BACK)
@@ -505,6 +513,52 @@ public class MainActivity extends Activity
 			LogWrapper.v(TAG, "MainActivity::CustomAdapter::getView exit",
 			        "view=", view);
 			return view;
+		}
+	}
+
+	private class KeyPressListener implements OnKeyListener
+	{
+
+		@Override
+		public boolean onKey(View v, int keyCode, KeyEvent event)
+		{
+			LogWrapper.v(TAG, "MainActivity::KeyPressListener::onKey enter",
+			        "this=", this, "v=", v, "keyCode=", keyCode, "event=",
+			        event);
+			// assume we won't consume this event
+			boolean result = false;
+
+			// get the adapter
+			CustomAdapter adapter = (CustomAdapter) listview.getAdapter();
+
+			switch (keyCode)
+			{
+				case KeyEvent.KEYCODE_DPAD_RIGHT:
+					// ignore this if we haven't selected an actual meter
+					if (listview.getSelectedItemPosition() < adapter.getCount())
+					{
+						// consume this event
+						result = true;
+					}
+					break;
+
+				case KeyEvent.KEYCODE_DPAD_LEFT:
+					// ignore this if we haven't selected an actual meter
+					if (listview.getSelectedItemPosition() < adapter.getCount())
+					{
+						// consume this event
+						result = true;
+					}
+
+				default:
+					// ignore
+					LogWrapper.d(TAG, "ignoring key press=", event);
+					break;
+			}
+			// done
+			LogWrapper.v(TAG, "MainActivity::KeyPressListener::onKey exit",
+			        "result=", result);
+			return result;
 		}
 
 	}

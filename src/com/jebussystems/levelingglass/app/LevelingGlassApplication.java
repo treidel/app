@@ -10,7 +10,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.SharedPreferences;
 
-import com.jebussystems.levelingglass.control.MeterConfig;
+import com.jebussystems.levelingglass.control.config.MeterConfig;
 import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 

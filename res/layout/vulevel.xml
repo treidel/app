@@ -16,6 +16,7 @@
         custom:floor="-20"
         custom:marks="3,0,-5,-10,-20"
         custom:ok="0"
+        custom:ok_color="@android:color/white"
         custom:warning="1"/>
 
 </LinearLayout>

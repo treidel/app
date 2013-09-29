@@ -14,8 +14,10 @@ import android.widget.TextView;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
-import com.jebussystems.levelingglass.control.MeterConfig;
 import com.jebussystems.levelingglass.control.MeterType;
+import com.jebussystems.levelingglass.control.config.HoldTimeConfig;
+import com.jebussystems.levelingglass.control.config.MeterConfig;
+import com.jebussystems.levelingglass.control.config.MeterConfigFactory;
 import com.jebussystems.levelingglass.control.v1.ControlV1;
 import com.jebussystems.levelingglass.util.LogWrapper;
 
@@ -83,46 +85,23 @@ public class LevelSelectionActivity extends Activity
 		Button buttonCancel = (Button) findViewById(R.id.button_cancel);
 
 		// populate the views with data from the config
-		switch (config.getMeterType())
+		int selectedRadioId = convertMeterTypeToRadioId(config.getMeterType());
+		this.radioGroupLevel.check(selectedRadioId);
+		// populate the hold time if this meter type supports it
+		if (true == config instanceof HoldTimeConfig)
 		{
-			case NONE:
-				this.radioGroupLevel.check(R.id.radio_levelselection_none);
-				break;
-			case PPM:
-				this.radioGroupLevel.check(R.id.radio_levelsection_ppm);
-				if (null != config.getHoldtime())
-				{
-					this.seekBarHoldTime.setProgress(config.getHoldtime());
-				}
-				else
-				{
-					this.seekBarHoldTime.setProgress(0);
-				}
-				break;
-			case DIGITALPEAK:
-				this.radioGroupLevel.check(R.id.radio_levelsection_digitalpeak);
-				if (null != config.getHoldtime())
-				{
-					this.seekBarHoldTime.setProgress(config.getHoldtime());
-				}
-				else
-				{
-					this.seekBarHoldTime.setProgress(0);
-				}
-				break;
-			case VU:
-				this.radioGroupLevel.check(R.id.radio_levelsection_vu);
-				break;
-			default:
-				LogWrapper.wtf(TAG, "unknown level=", config.getMeterType());
-				return;
+			if (null != ((HoldTimeConfig) config).getHoldtime())
+			{
+				this.seekBarHoldTime.setProgress(((HoldTimeConfig) config)
+				        .getHoldtime());
+			}
 		}
 
 		// update the hold time label
 		updateHoldTimeLabel(this.seekBarHoldTime.getProgress());
 		// update the visible stuff
 		updateSelectionDialog(layout,
-		        this.radioGroupLevel.getCheckedRadioButtonId());		
+		        this.radioGroupLevel.getCheckedRadioButtonId());
 
 		// add the listeners
 		buttonOK.setOnClickListener(new OkButtonListener());
@@ -156,8 +135,8 @@ public class LevelSelectionActivity extends Activity
 		// update the label
 		if (0 == progress)
 		{
-			this.textViewHoldTime.setText(LevelSelectionActivity.this.getResources()
-			        .getString(R.string.levelselection_off));
+			this.textViewHoldTime.setText(LevelSelectionActivity.this
+			        .getResources().getString(R.string.levelselection_off));
 		}
 		else
 		{
@@ -204,6 +183,24 @@ public class LevelSelectionActivity extends Activity
 			default:
 				LogWrapper.wtf(TAG, "unknown radio button id=", id);
 				return null;
+		}
+	}
+
+	private int convertMeterTypeToRadioId(MeterType meterType)
+	{
+		switch (meterType)
+		{
+			case NONE:
+				return R.id.radio_levelselection_none;
+			case DIGITALPEAK:
+				return R.id.radio_levelsection_digitalpeak;
+			case PPM:
+				return R.id.radio_levelsection_ppm;
+			case VU:
+				return R.id.radio_levelsection_vu;
+			default:
+				LogWrapper.wtf(TAG, "unknown meter type=", meterType);
+				return 0;
 		}
 	}
 
@@ -256,14 +253,21 @@ public class LevelSelectionActivity extends Activity
 			// extract the data from the views
 			MeterType meterType = convertRadioIdToMeterType(radioGroupLevel
 			        .getCheckedRadioButtonId());
-			config.setMeterType(meterType);
-			if (0 == seekBarHoldTime.getProgress())
+			// replace the existing config with a completely new one
+			config = MeterConfigFactory.createMeterConfig(meterType,
+			        config.getChannel());
+			// set the hold time if this type supports it
+			if (true == config instanceof HoldTimeConfig)
 			{
-				config.setHoldtime(null);
-			}
-			else
-			{
-				config.setHoldtime(seekBarHoldTime.getProgress());
+				if (0 == seekBarHoldTime.getProgress())
+				{
+					((HoldTimeConfig) config).setHoldtime(null);
+				}
+				else
+				{
+					((HoldTimeConfig) config).setHoldtime(seekBarHoldTime
+					        .getProgress());
+				}
 			}
 			// update the config
 			((LevelingGlassApplication) getApplication())

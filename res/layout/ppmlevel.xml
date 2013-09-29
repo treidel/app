@@ -13,11 +13,11 @@
         android:layout_height="?android:attr/listPreferredItemHeight"
         android:padding="2dp"
         custom:ceiling="5"
-        custom:floor="-50"
+        custom:floor="-20"
         custom:ok="-9"
         custom:warning="0"
         custom:hold="4"
         custom:level="2"
-        custom:marks="5,0,-5,-10,-20,-30,-40,-50" />
+        custom:marks="5,0,-5,-10,-20" />
 
 </LinearLayout>

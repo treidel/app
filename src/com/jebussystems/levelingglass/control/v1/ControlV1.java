@@ -22,11 +22,13 @@ import com.jebussystems.levelingglass.bluetooth.spp.SPPManager;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPMessageHandler;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPState;
 import com.jebussystems.levelingglass.bluetooth.spp.SPPStateListener;
-import com.jebussystems.levelingglass.control.LevelDataRecord;
-import com.jebussystems.levelingglass.control.MeterConfig;
 import com.jebussystems.levelingglass.control.MeterType;
-import com.jebussystems.levelingglass.control.PeakLevelDataRecord;
-import com.jebussystems.levelingglass.control.VULevelDataRecord;
+import com.jebussystems.levelingglass.control.config.HoldTimeConfig;
+import com.jebussystems.levelingglass.control.config.MeterConfig;
+import com.jebussystems.levelingglass.control.config.MeterConfigFactory;
+import com.jebussystems.levelingglass.control.records.LevelDataRecord;
+import com.jebussystems.levelingglass.control.records.LevelDataRecordFactory;
+import com.jebussystems.levelingglass.control.records.PeakDataRecord;
 import com.jebussystems.levelingglass.util.EnumMapper;
 import com.jebussystems.levelingglass.util.LogWrapper;
 import com.jebussystems.levelingglass.util.PoolableMessageManager;
@@ -303,40 +305,30 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 	// private method implementations
 	// ////////////////////////////////////////////////////////////////////////
 
-	private void sendLevelRequest(int channel, MeterConfig config)
+	private void sendLevelRequest(MeterConfig config)
 	{
 		LogWrapper.v(TAG, "ControlV1::sendLevelRequest enter", "this=", this,
-		        "channel=", channel, "config=", config);
+		        "config=", config);
 
-		// setup the level data for this channel
-		switch (config.getMeterType())
-		{
-			case NONE:
-				this.levelDataRecords.remove(config.getChannel());
-				break;
-			case DIGITALPEAK:
-			case PPM:
-				this.levelDataRecords.put(config.getChannel(),
-				        new PeakLevelDataRecord(config.getChannel()));
-				break;
-			case VU:
-				this.levelDataRecords.put(config.getChannel(),
-				        new VULevelDataRecord(config.getChannel()));
-				break;
-			default:
-				LogWrapper.wtf(TAG, "invalid type=", config.getMeterType());
-				return;
-		}
+		// remove any existing data record
+		this.levelDataRecords.remove(config.getChannel());
+
+		// create + store the new record
+		LevelDataRecord record = LevelDataRecordFactory.createLevelDataRecord(
+		        config.getMeterType(), config.getChannel());
+		this.levelDataRecords.put(config.getChannel(), record);
 
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
 		        .newBuilder();
 		setLevelRequestBuilder.setType(levelMapper.mapToExternal(config
 		        .getMeterType()));
-		setLevelRequestBuilder.setChannel(channel);
-		if (null != config.getHoldtime())
+		setLevelRequestBuilder.setChannel(config.getChannel());
+		// only set the hold time if this meter supports it
+		if (true == config instanceof HoldTimeConfig)
 		{
-			setLevelRequestBuilder.setHoldtime(config.getHoldtime());
+			setLevelRequestBuilder.setHoldtime(((HoldTimeConfig) config)
+			        .getHoldtime());
 		}
 		V1.Request.Builder requestBuilder = V1.Request.newBuilder();
 		requestBuilder.setSetlevel(setLevelRequestBuilder);
@@ -470,7 +462,12 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					// get the record
 					LevelDataRecord internalRecord = this.levelDataRecords
 					        .get(externalRecord.getChannel());
-					Assert.assertNotNull(internalRecord);
+					if (null == internalRecord)
+					{
+						LogWrapper.d(TAG, "internal record missing, channel=",
+						        externalRecord.getChannel());
+						continue;
+					}
 					synchronized (internalRecord)
 					{
 						switch (configuredLevel)
@@ -478,17 +475,14 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 							case PPM:
 							case DIGITALPEAK:
 								// update the internal record
-								((PeakLevelDataRecord) internalRecord)
-								        .setPeaklevelInDB(externalRecord
-								                .getPeakInDB());
-								((PeakLevelDataRecord) internalRecord)
-								        .setHoldLevelInDB(externalRecord
-								                .getHoldInDB());
+								internalRecord.setLevel(externalRecord
+								        .getPeakInDB());
+								((PeakDataRecord) internalRecord)
+								        .setHold(externalRecord.getHoldInDB());
 								break;
 							case VU:
-								((VULevelDataRecord) internalRecord)
-								        .setVUInUnits(externalRecord
-								                .getVuInUnits());
+								internalRecord.setLevel(externalRecord
+								        .getVuInUnits());
 								break;
 						}
 					}
@@ -574,14 +568,15 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 					LogWrapper.d(TAG, "unknown channel=", channel,
 					        ", setting to NONE");
 					// create + store the channel config
-					config = new MeterConfig(channel, MeterType.NONE);
+					config = MeterConfigFactory.createMeterConfig(
+					        MeterType.NONE, channel);
 					LevelingGlassApplication.getInstance().setConfigForChannel(
 					        config);
 				}
 				else
 				{
 					LogWrapper.d(TAG, "updating channel=", channel);
-					object.sendLevelRequest(channel, config);
+					object.sendLevelRequest(config);
 				}
 			}
 
@@ -629,7 +624,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 				MeterConfig config = LevelingGlassApplication.getInstance()
 				        .getConfigForChannel(channel);
 				// send the new level
-				object.sendLevelRequest(channel, config);
+				object.sendLevelRequest(config);
 			}
 			// no change in state
 			LogWrapper
