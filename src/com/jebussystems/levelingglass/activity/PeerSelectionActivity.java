@@ -48,6 +48,7 @@ public class PeerSelectionActivity extends Activity
 
 	private LevelingGlassApplication application;
 	private ArrayAdapter<BluetoothDevice> adapter;
+	private boolean initialized = false;
 
 	// /////////////////////////////////////////////////////////////////////////
 	// constructors
@@ -72,22 +73,6 @@ public class PeerSelectionActivity extends Activity
 		// fetch the application
 		this.application = (LevelingGlassApplication) getApplication();
 
-		// setup the layout
-		setContentView(R.layout.peerselection);
-
-		// create the adapter
-		this.adapter = new ArrayAdapter<BluetoothDevice>(this,
-		        android.R.layout.simple_list_item_1);
-
-		// find the listview
-		ListView listView = (ListView) findViewById(R.id.listview_peers);
-
-		// link the adapter to the listview
-		listView.setAdapter(this.adapter);
-
-		// setup the listener
-		listView.setOnItemClickListener(new ItemClickListener());
-
 		// see if we already have a configured device
 		BluetoothDevice device = application.getDevice();
 		if (null != device)
@@ -95,9 +80,26 @@ public class PeerSelectionActivity extends Activity
 			LogWrapper.d(TAG, "existing device found=", device);
 			// start the connection activity
 			handleDeviceSelected(device);
-			return;
 		}
+		else if (false == initialized)
+		{
+			// setup the layout
+			setContentView(R.layout.peerselection);
 
+			// create the adapter
+			this.adapter = new ArrayAdapter<BluetoothDevice>(this,
+			        android.R.layout.simple_list_item_1);
+
+			// find the listview
+			ListView listView = (ListView) findViewById(R.id.listview_peers);
+
+			// link the adapter to the listview
+			listView.setAdapter(this.adapter);
+
+			// setup the listener
+			listView.setOnItemClickListener(new ItemClickListener());
+			// we're initialized
+		}
 		LogWrapper.v(TAG, "PeerSelectionActivity::onCreate exit");
 	}
 
@@ -109,8 +111,12 @@ public class PeerSelectionActivity extends Activity
 
 		super.onStart();
 
-		// load the list of devices
-		loadDevices();
+		// skip if not initialized
+		if (true == initialized)
+		{
+			// load the list of devices
+			loadDevices();
+		}
 
 		LogWrapper.v(TAG, "PeerSelectionActivity::onStart exit");
 	}
@@ -204,7 +210,7 @@ public class PeerSelectionActivity extends Activity
 	{
 
 		@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
-        @Override
+		@Override
 		public void onItemClick(AdapterView<?> parent, View view, int position,
 		        long id)
 		{
@@ -268,7 +274,7 @@ public class PeerSelectionActivity extends Activity
 	}
 
 	@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
-    private class IntentReceiver extends BroadcastReceiver
+	private class IntentReceiver extends BroadcastReceiver
 	{
 		private final AlertDialog dialog;
 
