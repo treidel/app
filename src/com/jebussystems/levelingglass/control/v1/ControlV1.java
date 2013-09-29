@@ -316,7 +316,10 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener
 		// create + store the new record
 		LevelDataRecord record = LevelDataRecordFactory.createLevelDataRecord(
 		        config.getMeterType(), config.getChannel());
-		this.levelDataRecords.put(config.getChannel(), record);
+		if (null != record)
+		{
+			this.levelDataRecords.put(config.getChannel(), record);
+		}
 
 		// build the message to set the level
 		V1.SetLevelRequest.Builder setLevelRequestBuilder = V1.SetLevelRequest
