@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import junit.framework.Assert;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -199,7 +198,6 @@ public class MainActivity extends Activity
 				{
 					// find the layout view
 					View view = listview.getChildAt(record.getChannel() - 1);
-					Assert.assertNotNull(view);
 					// find the audio level view
 					AudioLevelView audiolevel = (AudioLevelView) view
 					        .findViewById(R.id.audiolevelview);

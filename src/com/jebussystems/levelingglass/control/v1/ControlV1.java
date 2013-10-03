@@ -10,7 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import junit.framework.Assert;
 import v1.V1;
 
 import com.google.protobuf.ByteString;
@@ -337,7 +336,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener {
 		try {
 			// allocate a byte buffer to hold it
 			ByteBuffer buffer = SPPConnection.getBufferPool().borrowObject();
-			Assert.assertTrue(buffer.capacity() >= length);
+			assert buffer.capacity() >= length;
 			// wrap the buffer
 			CodedOutputStream stream = CodedOutputStream.newInstance(buffer
 					.array());

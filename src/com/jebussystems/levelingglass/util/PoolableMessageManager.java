@@ -3,8 +3,6 @@ package com.jebussystems.levelingglass.util;
 import java.util.HashMap;
 import java.util.Map;
 
-import junit.framework.Assert;
-
 import org.apache.commons.pool.ObjectPool;
 
 public class PoolableMessageManager
@@ -46,7 +44,6 @@ public class PoolableMessageManager
 	{
 		ObjectPool<? extends PoolableMessage> pool = this.poolMap
 		        .get(messageClass);
-		Assert.assertNotNull(pool);
 		try
 		{
 			return (T) pool.borrowObject();

@@ -5,8 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import junit.framework.Assert;
-
 import org.apache.commons.pool.BasePoolableObjectFactory;
 import org.apache.commons.pool.ObjectPool;
 import org.apache.commons.pool.impl.StackObjectPool;
@@ -185,7 +183,7 @@ public class SPPConnection
 					try
 					{
 						ByteBuffer buffer = getBufferPool().borrowObject();
-						Assert.assertTrue(buffer.capacity() >= length);
+						assert buffer.capacity() >= length;
 						readStream.read(buffer.array(), 0, length);
 						// indicate how much data is available
 						buffer.limit(length);
