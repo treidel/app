@@ -10,6 +10,11 @@
 	<name>Leveling Glass Android App</name>
 
 	<dependencies>
+        <dependency>
+            <groupId>com.jebussystems.levelingglass</groupId>
+            <artifactId>com.jebussystems.levelingglass.proto</groupId>
+            <version>1.0.0</version>
+        </dependency>
 		<dependency>
 			<groupId>com.google.android</groupId>
 			<artifactId>android</artifactId>
