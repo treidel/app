@@ -12,7 +12,7 @@
 	<dependencies>
         <dependency>
             <groupId>com.jebussystems.levelingglass</groupId>
-            <artifactId>com.jebussystems.levelingglass.proto</groupId>
+            <artifactId>com.jebussystems.levelingglass.proto</artifactId>
             <version>1.0.0</version>
         </dependency>
 		<dependency>
