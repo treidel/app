@@ -5,9 +5,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.jebussystems.levelingglass</groupId>
 	<artifactId>com.jebussystems.levelingglass.app</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>apk</packaging>
 	<name>Leveling Glass Android App</name>
+
+    <properties>
+        <build.number></build.number>
+    </properties>
 
 	<dependencies>
         <dependency>
@@ -33,7 +37,7 @@
         </dependency>
 	</dependencies>
 	<build>
-		<finalName>${project.artifactId}</finalName>
+		<finalName>leveling-glass-${project.version}-${build.number}</finalName>
 		<sourceDirectory>src</sourceDirectory>
 		<pluginManagement>
 			<plugins>
