@@ -10,7 +10,7 @@
 	<name>Leveling Glass Android App</name>
 
     <properties>
-        <build.number></build.number>
+        <build.number>INTERNAL</build.number>
     </properties>
 
 	<dependencies>
