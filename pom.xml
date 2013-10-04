@@ -58,7 +58,6 @@
 					<artifactId>android-maven-plugin</artifactId>
 					<version>3.7.0</version>
 					<extensions>true</extensions>
-					<!-- tell build process to use filtered manifest -->
 					<androidManifestFile>${project.build.directory}/filtered-manifest/AndroidManifest.xml</androidManifestFile>
 				</plugin>
 			</plugins>
