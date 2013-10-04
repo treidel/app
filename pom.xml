@@ -11,7 +11,7 @@
 
 	<properties>
 		<build.number>INTERNAL</build.number>
-		<app.version.name>1.0.0-SNAPSHOT</app.version.name>
+		<app.version.name>${project.version}-${build.number}</app.version.name>
 	</properties>
 
 	<dependencies>
