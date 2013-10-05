@@ -23,6 +23,7 @@ import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.jebussystems.levelingglass.R;
 import com.jebussystems.levelingglass.app.LevelingGlassApplication;
@@ -204,7 +205,8 @@ public class MainActivity extends Activity {
 					audiolevel.setLevel(level);
 					audiolevel.setHold(hold);
 				} else {
-					LogWrapper.d(TAG, "no view found for channel=", record.getChannel());
+					LogWrapper.d(TAG, "no view found for channel=",
+							record.getChannel());
 				}
 			}
 		}
@@ -443,6 +445,11 @@ public class MainActivity extends Activity {
 
 	private class KeyPressListener implements OnKeyListener {
 
+		private final String toastTrim = getApplicationContext().getResources()
+				.getString(R.string.main_trim_toast);
+		private final Toast toast = Toast.makeText(MainActivity.this,
+				String.format(this.toastTrim, 0.0f), Toast.LENGTH_SHORT);
+
 		@Override
 		public boolean onKey(View v, int keyCode, KeyEvent event) {
 			LogWrapper.v(TAG, "MainActivity::KeyPressListener::onKey enter",
@@ -467,8 +474,13 @@ public class MainActivity extends Activity {
 										.getSelectedItemPosition() + 1);
 						// see if this meter supports trim
 						if (true == config instanceof TrimConfig) {
+							TrimConfig trimConfig = (TrimConfig) config;
 							// increase the trim
-							((TrimConfig) config).addTrimIncrement();
+							trimConfig.addTrimIncrement();
+							// update + show the toast
+							this.toast.setText(String.format(this.toastTrim,
+									trimConfig.getTrim()));
+							this.toast.show();
 						}
 						// consume this event
 						result = true;
@@ -485,8 +497,14 @@ public class MainActivity extends Activity {
 										.getSelectedItemPosition() + 1);
 						// see if this meter supports trim
 						if (true == config instanceof TrimConfig) {
-							// decrase the trim
-							((TrimConfig) config).subtractTrimIncrement();
+							TrimConfig trimConfig = (TrimConfig) config;
+							// decrease the trim
+							trimConfig.subtractTrimIncrement();
+							// update + show the toast
+							this.toast.setText(String.format(this.toastTrim,
+									trimConfig.getTrim()));
+							this.toast.show();
+							toast.show();
 						}
 						// consume this event
 						result = true;
