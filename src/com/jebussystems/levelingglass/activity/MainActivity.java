@@ -481,6 +481,8 @@ public class MainActivity extends Activity {
 							this.toast.setText(String.format(this.toastTrim,
 									trimConfig.getTrim()));
 							this.toast.show();
+							// store the new trim
+							application.updateConfigForChannel(config);
 						}
 						// consume this event
 						result = true;
@@ -505,6 +507,8 @@ public class MainActivity extends Activity {
 									trimConfig.getTrim()));
 							this.toast.show();
 							toast.show();
+							// store the new trim
+							application.updateConfigForChannel(config);							
 						}
 						// consume this event
 						result = true;
