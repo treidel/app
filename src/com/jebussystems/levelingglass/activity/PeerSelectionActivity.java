@@ -99,6 +99,7 @@ public class PeerSelectionActivity extends Activity
 			// setup the listener
 			listView.setOnItemClickListener(new ItemClickListener());
 			// we're initialized
+			initialized = true;
 		}
 		LogWrapper.v(TAG, "PeerSelectionActivity::onCreate exit");
 	}
