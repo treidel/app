@@ -254,8 +254,9 @@ public class LevelSelectionActivity extends Activity
 			MeterType meterType = convertRadioIdToMeterType(radioGroupLevel
 			        .getCheckedRadioButtonId());
 			// replace the existing config with a completely new one
+			int channel = config.getChannel();
 			config = MeterConfigFactory.createMeterConfig(meterType,
-			        config.getChannel());
+			        channel);
 			// set the hold time if this type supports it
 			if (true == config instanceof HoldTimeConfig)
 			{

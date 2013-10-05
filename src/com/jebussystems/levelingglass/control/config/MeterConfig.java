@@ -47,6 +47,11 @@ public abstract class MeterConfig
 	{
 		return channel;
 	}
+	
+	public void setChannel(int channel)
+	{
+		this.channel = channel;
+	}
 
 	public abstract MeterType getMeterType();
 
