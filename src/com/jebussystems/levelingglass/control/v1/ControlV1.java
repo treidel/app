@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -502,6 +504,8 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener {
 							"ControlV1::QueryChannelsResponseHandler::handleEvent enter",
 							"this=", this, "object=", object, "data=", data);
 			V1.QueryAudioChannelsResponse response = (V1.QueryAudioChannelsResponse) data;
+			// the set of configs to store
+			Set<MeterConfig> configSet = new TreeSet<MeterConfig>();
 			for (int channel : response.getChannelsList()) {
 				// if we don't know about this channel populate
 				MeterConfig config = LevelingGlassApplication.getInstance()
@@ -512,13 +516,16 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener {
 					// create + store the channel config
 					config = MeterConfigFactory.createMeterConfig(
 							MeterType.NONE, channel);
-					LevelingGlassApplication.getInstance().updateConfigForChannel(
-							config);
 				} else {
 					LogWrapper.d(TAG, "updating channel=", channel);
 					object.sendLevelRequest(config);
 				}
+				// add this config to the set
+				configSet.add(config);
 			}
+			
+			// store all meter configs
+			LevelingGlassApplication.getInstance().setConfigForAllChannels(configSet);
 
 			// now connected
 			LogWrapper
