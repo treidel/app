@@ -172,11 +172,11 @@ public class MainActivity extends Activity {
 		ControlV1 control = ControlV1.getInstance();
 		// query the level data from the control object
 		Map<Integer, LevelDataRecord> records = control.getLevelDataRecord();
-		if (null != records) {
-			for (LevelDataRecord record : records.values()) {
-				synchronized (record) {
-					// find the layout view
-					View view = listview.getChildAt(record.getChannel() - 1);
+		for (LevelDataRecord record : records.values()) {
+			synchronized (record) {
+				// find the layout view
+				View view = listview.getChildAt(record.getChannel() - 1);
+				if (null != view) {
 					// find the audio level view
 					AudioLevelView audiolevel = (AudioLevelView) view
 							.findViewById(R.id.audiolevelview);
@@ -203,6 +203,8 @@ public class MainActivity extends Activity {
 					// populate the audio level view
 					audiolevel.setLevel(level);
 					audiolevel.setHold(hold);
+				} else {
+					LogWrapper.d(TAG, "no view found for channel=", record.getChannel());
 				}
 			}
 		}
