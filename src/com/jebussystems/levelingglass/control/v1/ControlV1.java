@@ -512,7 +512,7 @@ public class ControlV1 implements SPPMessageHandler, SPPStateListener {
 					// create + store the channel config
 					config = MeterConfigFactory.createMeterConfig(
 							MeterType.NONE, channel);
-					LevelingGlassApplication.getInstance().setConfigForChannel(
+					LevelingGlassApplication.getInstance().updateConfigForChannel(
 							config);
 				} else {
 					LogWrapper.d(TAG, "updating channel=", channel);

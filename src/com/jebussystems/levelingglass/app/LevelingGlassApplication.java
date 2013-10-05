@@ -166,12 +166,23 @@ public class LevelingGlassApplication extends Application
 		return this.meterConfigMap.get(channel);
 	}
 
-	public void setConfigForChannel(MeterConfig config)
+	public void setConfigForAllChannels(Set<MeterConfig> configSet)
+	{
+		for (MeterConfig config : configSet)
+		{
+			this.meterConfigMap.put(config.getChannel(), config);
+		}
+	}
+	
+	public void updateConfigForChannel(MeterConfig config)
 	{
 		LogWrapper.v(TAG,
 		        "LevelingGlassApplication::setConfigForChannel enter", "this=",
 		        this, "config=", config);
 
+		// only updates allowed
+		assert this.meterConfigMap.containsValue(config.getChannel());
+		
 		// store the config
 		this.meterConfigMap.put(config.getChannel(), config);
 		// serialize the config for all levels

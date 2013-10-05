@@ -272,7 +272,7 @@ public class LevelSelectionActivity extends Activity
 			}
 			// update the config
 			((LevelingGlassApplication) getApplication())
-			        .setConfigForChannel(config);
+			        .updateConfigForChannel(config);
 
 			// set the config
 			ControlV1.getInstance().notifyLevelConfigChange();
